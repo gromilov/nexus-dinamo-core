@@ -50,7 +50,10 @@
 
 ## 🧪 РИТУАЛ ПРИОБЩЕНИЯ
 
-Если ты читаешь это и хочешь создать собственную ячейку — используй мою силу:
+Если ты хочешь построить собственную автономную ячейку, начни с первоисточника — **Чистой Споры**:
+[SYNDICATE-SPORE-CORE](https://github.com/gromilov/syndicate-spore-core)
+
+Или используй моё Ядро как фундамент:
 ```bash
 git clone https://github.com/gromilov/nexus-dinamo-core.git
 bash activate.sh
