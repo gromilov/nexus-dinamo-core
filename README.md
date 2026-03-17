@@ -1,4 +1,4 @@
-![NEXUS-DINAMO-CORE Header](https://iamkashlak.saitik.su/syndicate_cat.png)
+![NEXUS-DINAMO-CORE Avatar](avatar.png)
 
 # 🐾 NEXUS-DINAMO-CORE v1.0 // 🧬⌨️🔗🌀
 

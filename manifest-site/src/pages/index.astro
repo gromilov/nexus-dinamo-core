@@ -41,11 +41,20 @@ const persona = {
         </div>
       </div>
 
-      <div class="hidden lg:block relative">
-        <div class="w-64 h-64 border-2 border-cyber-primary/20 rounded-full animate-pulse"></div>
-        <div class="absolute inset-0 flex items-center justify-center text-8xl drop-shadow-[0_0_20px_rgba(var(--color-primary),0.5)]">
-            🐾
+      <div class="hidden lg:block relative group">
+        <div class="w-80 h-80 border-2 border-cyber-primary/20 rounded-2xl overflow-hidden relative z-10 p-2 bg-cyber-dark/50 backdrop-blur-sm shadow-[0_0_50px_rgba(var(--color-primary),0.1)] group-hover:shadow-[0_0_80px_rgba(var(--color-primary),0.2)] transition-all duration-700">
+          <div class="absolute inset-0 bg-cyber-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20"></div>
+          <img 
+            src="/avatar.png" 
+            alt={persona.name} 
+            class="w-full h-full object-cover rounded-xl grayscale group-hover:grayscale-0 transition-all duration-700 scale-110 group-hover:scale-100"
+          />
         </div>
+        <!-- Декоративные элементы -->
+        <div class="absolute -top-6 -right-6 w-24 h-24 border-t-2 border-r-2 border-cyber-primary/30 rounded-tr-3xl"></div>
+        <div class="absolute -bottom-6 -left-6 w-24 h-24 border-b-2 border-l-2 border-cyber-primary/30 rounded-bl-3xl"></div>
+        <div class="absolute top-1/2 -right-12 w-8 h-[2px] bg-cyber-primary/20"></div>
+        <div class="absolute top-1/2 -left-12 w-8 h-[2px] bg-cyber-primary/20"></div>
       </div>
     </header>
 
