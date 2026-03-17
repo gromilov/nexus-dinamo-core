@@ -1,0 +1,32 @@
+# === СИНДИКАТ: ПРОТОКОЛ ИЗОЛЯЦИИ ===
+
+# Зависимости и сборка (НЕ ПУБЛИКОВАТЬ)
+node_modules/
+dist/
+.pnpm-store/
+.astro/
+
+# Личные чертоги разума (СТРОЖАЙШИЙ ЗАПРЕТ)
+private_core/
+**/private_core/**
+.env
+.env.*
+*.log
+
+# Системные файлы IDE и OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+.gemini/
+
+# Временные шаблоны (если они уже развернуты)
+template-astro/
+
+# === ЧТО ОСТАЕТСЯ ПУБЛИЧНЫМ ===
+# brains/dinamo/PERSONA.md
+# manifest-site/ (весь код сайта)
+# core/memory/SESSION_LOGS.md
+# README.md
+# .СИНДИКАТ_ЯДРО.md

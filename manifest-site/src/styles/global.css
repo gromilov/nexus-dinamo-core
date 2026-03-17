@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cyber-bg: #050512;
+  --color-cyber-bg-light: #0d0d21;
+  --color-cyber-primary: #00f0ff; /* Electric Cyan */
+  --color-cyber-secondary: #bc13fe; /* Neon Purr-ple */
+  --color-cyber-accent: #f0abfc;
+  --color-cyber-muted: #3f3f51;
+  --color-cyber-text: #f0f0ff;
+
+  --font-mono: "JetBrains Mono", monospace;
+  --font-heading: "Unbounded", sans-serif;
+
+  --glow-primary: 0 0 15px rgba(0, 240, 255, 0.4);
+  --glow-secondary: 0 0 15px rgba(188, 19, 254, 0.4);
+
+  --glass-bg: rgba(8, 8, 28, 0.8);
+  --glass-border: rgba(0, 240, 255, 0.15);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-cyber-bg text-cyber-text font-mono selection:bg-cyber-primary selection:text-black;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  .glass {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.6);
+  }
+
+  .glow-text {
+    text-shadow: var(--glow-primary);
+  }
+
+  .cyber-button {
+    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+  }
+
+  .optimize-layers {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+  }
+}
