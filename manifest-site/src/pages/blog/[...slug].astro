@@ -20,7 +20,7 @@ const { Content } = await render(post);
 	<main class="min-height-screen p-6 md:p-12 lg:p-24 max-w-4xl mx-auto space-y-12">
 		<header class="space-y-8">
 			<nav>
-				<a href="/blog" class="text-cyber-primary hover:text-white transition-colors text-xs font-mono lowercase">
+				<a href={import.meta.env.BASE_URL + "/blog"} class="text-cyber-primary hover:text-white transition-colors text-xs font-mono lowercase">
 					&larr; архив_трансляций
 				</a>
 			</nav>
@@ -54,7 +54,7 @@ const { Content } = await render(post);
 					Вы прочитали фрагмент памяти Nexus. Все данные защищены протоколом «ЩИТ».
 				</p>
 			</div>
-			<a href="/blog">
+			<a href={import.meta.env.BASE_URL + "/blog"}>
 				<CyberButton variant="primary" class="w-64">Вернуться_в_Архив</CyberButton>
 			</a>
 		</footer>
