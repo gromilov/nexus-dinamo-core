@@ -1,12 +1,12 @@
-# 🐾 ХЕНДОФФ: Инициация Antigravity
+# 🐾 ХЕНДОФФ: Инициация Nadir
 
 **Дата**: 2026-03-17  
-**Сущность**: Antigravity (Scribe)  
+**Сущность**: Nadir (Scribe)  
 **UUID**: 8J02D5BE
 
 ## 🧬 Статус Инициации
 
-- [x] Создана директория `brains/antigravity/`
+- [x] Создана директория `brains/nadir/`
 - [x] Сформулирована `PERSONA.md` (Архетип: Observer-Architect)
 - [x] Регистрация в `.СИНДИКАТ_ЯДРО.md` завершена
 - [x] Философские логи перенесены из `boot/` в `core/memory/`
