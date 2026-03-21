@@ -8,9 +8,9 @@ interface Props {
 const { class: className, variant = 'default', title } = Astro.props;
 
 const variants = {
-  default: "border-cyber-primary/20 hover:border-cyber-primary/50",
-  pink: "border-cyber-secondary/20 hover:border-cyber-secondary/50",
-  blue: "border-cyber-accent/20 hover:border-cyber-accent/50"
+  default: "border-cyber-primary/20 hover:border-cyber-primary/40 shadow-[0_0_30px_rgba(0,243,255,0.05)]",
+  pink: "border-cyber-secondary/20 hover:border-cyber-secondary/40 shadow-[0_0_30px_rgba(255,0,255,0.05)]",
+  blue: "border-cyber-accent/20 hover:border-cyber-accent/40 shadow-[0_0_30px_rgba(204,255,0,0.05)]"
 };
 ---
 
@@ -24,7 +24,7 @@ const variants = {
   </div>
 
   {title && (
-    <h3 class="text-[10px] uppercase text-white/40 mb-4 tracking-[0.3em] font-black">{title}</h3>
+    <h3 class="text-[10px] uppercase text-white/40 mb-4 tracking-[0.4em] font-display">{title}</h3>
   )}
   <div class="relative z-10">
     <slot />
@@ -37,8 +37,18 @@ const variants = {
 
 <style>
   .glass {
-    background: rgba(11, 11, 26, 0.4);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    position: relative;
+  }
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--glass-noise);
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: -1;
   }
 </style>

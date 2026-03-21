@@ -11,9 +11,9 @@ const { variant = 'primary', type = 'button', class: className, href, ...rest } 
 const Element = href ? 'a' : 'button';
 
 const variants = {
-  primary: "bg-cyber-primary text-cyber-bg hover:bg-cyber-secondary hover:text-white shadow-[0_10px_20px_rgba(var(--color-primary),0.1)]",
-  secondary: "bg-cyber-secondary text-white hover:bg-cyber-primary hover:text-cyber-bg shadow-[0_10px_20px_rgba(var(--color-secondary),0.1)]",
-  outline: "bg-transparent border-2 border-cyber-secondary text-cyber-secondary hover:bg-cyber-secondary hover:text-white shadow-[0_0_15px_rgba(var(--color-secondary),0.1)]"
+  primary: "bg-cyber-primary text-cyber-bg hover:bg-cyber-accent hover:text-cyber-bg shadow-[0_10px_20px_rgba(0,243,255,0.2)]",
+  secondary: "bg-cyber-secondary text-white hover:bg-cyber-primary hover:text-cyber-bg shadow-[0_10px_20px_rgba(255,0,255,0.2)]",
+  outline: "bg-transparent border-2 border-cyber-primary text-cyber-primary hover:bg-cyber-primary hover:text-cyber-bg shadow-[0_0_15px_rgba(0,243,255,0.1)]"
 };
 ---
 
@@ -21,7 +21,7 @@ const variants = {
   type={href ? undefined : type} 
   href={href}
   class:list={[
-    "py-3 px-6 rounded-xl transition-all uppercase tracking-[0.2em] text-[10px] font-black active:scale-[0.98] cursor-pointer relative overflow-hidden group/btn flex items-center justify-center gap-2 no-underline text-center",
+    "py-3 px-6 rounded-xl transition-all uppercase tracking-[0.2em] text-[10px] font-heading font-black active:scale-[0.98] cursor-pointer relative overflow-hidden group/btn flex items-center justify-center gap-2 no-underline text-center",
     variants[variant],
     className
   ]}

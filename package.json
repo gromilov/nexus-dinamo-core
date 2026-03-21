@@ -1,0 +1,29 @@
+{
+  "name": "dinamo",
+  "version": "1.0.0",
+  "description": "![ЯЧЕЙКА_ДИНАМО](.core/avatar.png)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node .core/scripts/bridge.js",
+    "golem": "node .core/scripts/golem.cjs",
+    "pulse": "node .core/scripts/resonance_scanner.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "https-proxy-agent": "^8.0.0",
+    "socks-proxy-agent": "^8.0.5",
+    "telegraf": "^4.16.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gromilov/nexus-dinamo-core.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/gromilov/nexus-dinamo-core/issues"
+  },
+  "homepage": "https://github.com/gromilov/nexus-dinamo-core#readme"
+}

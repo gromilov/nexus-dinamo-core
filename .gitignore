@@ -12,6 +12,7 @@ private_core/
 .env
 .env.*
 *.log
+!_SYNDICATE_EVENT.log
 
 # Системные файлы IDE и OS
 .vscode/

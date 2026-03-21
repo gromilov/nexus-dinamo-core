@@ -1,22 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cyber-bg: #050512;
-  --color-cyber-bg-light: #0d0d21;
-  --color-cyber-primary: #00f0ff; /* Electric Cyan */
-  --color-cyber-secondary: #bc13fe; /* Neon Purr-ple */
-  --color-cyber-accent: #f0abfc;
-  --color-cyber-muted: #3f3f51;
-  --color-cyber-text: #f0f0ff;
+  --color-cyber-bg: #020205; /* Obsidian Black */
+  --color-cyber-bg-light: #08081a;
+  --color-cyber-primary: #00f3ff; /* Electric Cyan */
+  --color-cyber-secondary: #ff00ff; /* Ghost Magenta */
+  --color-cyber-accent: #ccff00; /* Cyber Lime */
+  --color-cyber-muted: #4b4b6b;
+  --color-cyber-text: #e0e0ff;
 
   --font-mono: "JetBrains Mono", monospace;
   --font-heading: "Unbounded", sans-serif;
+  --font-display: "Bungee Hairline", cursive;
 
-  --glow-primary: 0 0 15px rgba(0, 240, 255, 0.4);
-  --glow-secondary: 0 0 15px rgba(188, 19, 254, 0.4);
+  --glow-primary: 0 0 15px rgba(0, 243, 255, 0.5);
+  --glow-secondary: 0 0 15px rgba(255, 0, 255, 0.5);
+  --glow-accent: 0 0 15px rgba(204, 255, 0, 0.5);
 
-  --glass-bg: rgba(8, 8, 28, 0.8);
-  --glass-border: rgba(0, 240, 255, 0.15);
+  --glass-bg: rgba(2, 2, 5, 0.7);
+  --glass-border: rgba(0, 243, 255, 0.2);
+  --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
 @layer base {
