@@ -2,6 +2,7 @@
 
 @theme {
   --color-cyber-bg: #050505;
+  --color-cyber-bg-light: #151515;
   --color-cyber-primary: #d4af37; /* Antique Gold */
   --color-cyber-secondary: #8b6d1f; /* Darker Gold/Bronze */
   --color-cyber-accent: #ffdf00; /* Bright Gold */
