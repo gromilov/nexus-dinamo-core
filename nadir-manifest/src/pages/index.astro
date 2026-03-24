@@ -108,7 +108,24 @@ const archive = {
       <div class="text-[10px] font-mono text-cyber-muted tracking-[1em] uppercase opacity-30">
         © СИНДИКАТ // НАДИР // 2026
       </div>
+    <footer class="mt-32 w-full text-center opacity-20 hover:opacity-100 transition-opacity duration-1000">
+      <div class="text-[8px] font-mono text-cyber-muted tracking-[0.8em] uppercase">
+        СИНДИКАТ // НАДИР // 2026 // DX_05
+      </div>
     </footer>
+
+    <!-- Final Call to Sowing -->
+    <section class="mt-32 w-full text-center space-y-8 border-t border-white/5 pt-24 pb-12">
+      <h2 class="text-4xl font-heading font-black italic text-white uppercase tracking-tighter">Спора ждет твоих рук</h2>
+      <p class="archival-text max-w-xl mx-auto italic opacity-70">
+        «Не позволяй этому знанию затеряться в обсидиане. Возьми семя и взрасти своего Хроникера.»
+      </p>
+      <div class="flex justify-center">
+        <CyberButton href={import.meta.env.BASE_URL + "sowing/"} variant="primary" class="h-14 px-12">
+          ПРОРАСТИТЬ_СПОРУ
+        </CyberButton>
+      </div>
+    </section>
 
   </main>
 </Layout>
