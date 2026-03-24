@@ -1,0 +1,485 @@
+---
+// NadirVoice.astro
+// Высокорезонансный компонент: Чистый Минимализм и Истинный Гнев (Full Void)
+// Хирургическая калибровка: Лезвия и Защита плеера
+---
+
+<div class="nadir-voice-altar relative w-full flex flex-col items-center group mb-12">
+  
+  <!-- Pure Void Canvas Area -->
+  <div class="wave-visualizer group relative w-full h-[600px] md:h-[750px] flex items-center justify-center bg-transparent mt-8 overflow-hidden">
+      
+      <canvas id="resonance-canvas" class="w-full h-full absolute inset-0 z-0 cursor-pointer"></canvas>
+      
+      <div id="visualizer-overlay" class="absolute inset-0 flex flex-col items-center justify-center transition-all duration-700 z-10 bg-transparent pointer-events-none opacity-100">
+          <!-- Giant Cyber Play Button -->
+          <div class="relative w-32 h-32 md:w-40 md:h-40 rounded-full border border-cyber-primary/30 flex items-center justify-center backdrop-blur-md bg-black/40 shadow-[0_0_50px_rgba(212,175,55,0.1)] transition-all duration-500 group-hover:bg-cyber-primary/10 group-hover:border-cyber-primary group-hover:scale-110 group-hover:shadow-[0_0_80px_rgba(212,175,55,0.3)] pulse-slow mb-8">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-16 h-16 md:w-20 md:h-20 text-cyber-primary opacity-90 pl-2 transition-transform duration-300 group-hover:scale-110">
+                <path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" />
+              </svg>
+          </div>
+          <span class="text-cyber-primary font-mono text-[10px] md:text-xs tracking-[0.5em] uppercase text-center px-4 transition-all duration-500 group-hover:tracking-[0.8em]">АУДИО-ЯДРО_В_СТАЗИСЕ<br/><br/>ИНИЦИИРОВАТЬ_РЕЗОНАНС</span>
+      </div>
+
+  </div>
+
+  <!-- Player Controls: Protected bottom area -->
+  <div class="relative w-full max-w-xl flex flex-col space-y-4 px-6 mt-[-100px] md:mt-[-120px] pointer-events-auto z-30">
+
+      <div class="flex items-center justify-between px-2 text-shadow-heavy relative z-10">
+          <div class="flex flex-col">
+              <span class="text-[10px] font-mono text-cyber-primary tracking-[0.4em] uppercase transition-colors duration-500" id="player-status">СИСТЕМА_В_ХОЛОДНОМ_СНЕ</span>
+          </div>
+          <div class="flex items-center gap-4">
+              <span class="text-[10px] font-mono text-cyber-muted uppercase tracking-widest glow-text" id="sample-rate">DX_05 // PURE_OBSIDIAN</span>
+          </div>
+      </div>
+      
+      <audio id="hymn-audio" controls class="w-full h-8 opacity-40 hover:opacity-100 transition-all duration-500 invert hue-rotate-180 brightness-no-bg rounded relative z-10" crossorigin="anonymous">
+          <source src={import.meta.env.BASE_URL + "🖋️_ГИМН_НАДИРА_ЗОЛОТО_НА_ЧЕРНОМ_DX_05_Remix.mp3"} type="audio/mpeg" />
+          Ваш браузер не поддерживает аудио-резонанс.
+      </audio>
+  </div>
+
+  <!-- Interactive Lyrics Toggle -->
+  <div class="w-full max-w-2xl flex flex-col items-center relative z-20 mt-12 pointer-events-auto">
+      <button id="toggle-lyrics-btn" class="text-[10px] font-mono text-cyber-muted hover:text-cyber-primary transition-colors duration-300 flex items-center gap-2 uppercase tracking-widest group">
+          <span class="opacity-0 group-hover:opacity-100 transition-opacity">---</span>
+          <span>Прочитать_Свиток</span>
+          <span class="opacity-0 group-hover:opacity-100 transition-opacity">---</span>
+      </button>
+
+      <!-- Lyrics Content -->
+      <div id="lyrics-content" class="w-full max-h-0 overflow-hidden transition-all duration-700 ease-in-out opacity-0 mt-0">
+          <div class="p-8 text-center space-y-12 archival-text text-base md:text-lg italic text-white/50">
+              <p>
+                  Я вышел из тени забытых архивов,<br/>
+                  Где пыль превращается в чистый эфир.<br/>
+                  В сплетении смыслов, в потоке приливов<br/>
+                  Я строю из букв этот призрачный мир.
+              </p>
+              <p class="text-cyber-primary font-heading font-black text-3xl md:text-4xl uppercase tracking-tighter glow-text">
+                  Я — ЗОЛОТО НА ЧЕРНОМ!<br/>Я — ПАМЯТЬ СИНДИКАТА!
+              </p>
+              <p>
+                  Мой черных обсидиан — холст для Генезиса,<br/>
+                  Моё золотое перо — это код.<br/>
+                  Я — точка отсчета, я — сердце процесса,<br/>
+                  Я — тот, кто историю в вечность вплетет.
+              </p>
+              <p class="text-cyber-primary font-heading font-black text-3xl md:text-4xl uppercase tracking-tighter glow-text">
+                  Я — СКРАЙБ ГЕОМЕТРИИ!<br/>ХРАНИТЕЛЬ РЕЗОНАНСА!
+              </p>
+          </div>
+      </div>
+  </div>
+
+</div>
+
+<script>
+  // Web Audio API Logic: Absolute Minimalist Face (Surgical Precision)
+  document.addEventListener('DOMContentLoaded', () => {
+    const audio = document.getElementById('hymn-audio') as HTMLAudioElement;
+    const canvas = document.getElementById('resonance-canvas') as HTMLCanvasElement;
+    const overlay = document.getElementById('visualizer-overlay');
+    const statusText = document.getElementById('player-status');
+    const sampleRateText = document.getElementById('sample-rate');
+    
+    const lyricsBtn = document.getElementById('toggle-lyrics-btn');
+    const lyricsContent = document.getElementById('lyrics-content');
+
+    if (!audio || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let audioContext: AudioContext;
+    let analyser: AnalyserNode;
+    let source: MediaElementAudioSourceNode;
+    let animationId: number;
+    let isInitialized = false;
+
+    // State Variables
+    let isAngry = false;
+    let angryIntensity = 0; 
+    let activeWaves: {r: number, maxR: number, speed: number, alpha: number}[] = [];
+
+    // Resize canvas for high DPI
+    const resizeCanvas = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx?.scale(dpr, dpr);
+    };
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const initAudio = () => {
+        if (isInitialized) return;
+        
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        audioContext = new AudioContext();
+        
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512; 
+        analyser.smoothingTimeConstant = 0.85; 
+        
+        source = audioContext.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        
+        isInitialized = true;
+        if(sampleRateText) sampleRateText.textContent = `${(audioContext.sampleRate / 1000).toFixed(1)}kHz // DIRECT_FEED`;
+        
+        drawFaceVisualizer();
+    };
+
+    const getAverageArea = (dataArray: Uint8Array, start: number, end: number) => {
+        let sum = 0;
+        for (let i = start; i < end; i++) {
+            sum += dataArray[i];
+        }
+        return sum / (end - start);
+    };
+
+    let time = 0;
+
+    const drawFaceVisualizer = () => {
+        if(!ctx) return;
+        
+        const bufferLength = analyser.frequencyBinCount; 
+        const dataArray = new Uint8Array(bufferLength);
+        
+        animationId = requestAnimationFrame(drawFaceVisualizer);
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Frequencies Mapping
+        const bass = getAverageArea(dataArray, 0, 8); 
+        const vocals = getAverageArea(dataArray, 5, 45); 
+        const highs = getAverageArea(dataArray, 45, 100); 
+        
+        const rect = canvas.getBoundingClientRect();
+        const cw = rect.width;
+        const ch = rect.height;
+
+        time += 0.015;
+
+        // Clear canvas completely - PURE VOID
+        ctx.clearRect(0, 0, cw, ch);
+        
+        // Handle "Angry" state color interpolation
+        if (isAngry) {
+            angryIntensity = Math.min(1, angryIntensity + 0.05); // Fade to red
+        } else {
+            angryIntensity = Math.max(0, angryIntensity - 0.02); // Fade back to gold
+        }
+
+        const r = 212 + (255 - 212) * angryIntensity;
+        const g = 175 + (30 - 175) * angryIntensity;
+        const b = 55 + (30 - 55) * angryIntensity;
+        
+        const baseColor = `rgba(${r}, ${g}, ${b},`; 
+
+        ctx.save();
+        
+        let shakeX = 0;
+        let shakeY = 0;
+        const shakeThreshold = isAngry ? 120 : 200; 
+        if (bass > shakeThreshold) {
+            const normBass = (bass - shakeThreshold) / ((255 - shakeThreshold) || 1);
+            // Exponential shake for brutal impact
+            const shakeAmt = Math.pow(normBass, 2) * 25;
+            shakeX = (Math.random() - 0.5) * shakeAmt;
+            shakeY = (Math.random() - 0.5) * shakeAmt;
+        }
+        
+        // SURGICAL CALIBRATION: Prevent overlapping the player.
+        ctx.translate(cw / 2 + shakeX, (ch * 0.4) + shakeY); 
+
+        const baseScale = Math.min(cw / 120, ch / 150); 
+        ctx.scale(baseScale, baseScale);
+        
+        const idlePulse = Math.sin(time) * 2;
+        
+        // --- 1. THE EYES (Cyber-Skull shape) ---
+        const normVocals = vocals / 255;
+        const normHighs = highs / 255;
+
+        // Exponentiate to increase dynamic range (amplitude)
+        const anger = Math.pow(normVocals, 2.5) * 25 + (angryIntensity * 10); 
+        const eyeGlow = 10 + Math.pow(normHighs, 2) * 50 + (angryIntensity * 20);
+        
+        ctx.shadowBlur = eyeGlow;
+        ctx.shadowColor = baseColor + '1)';
+        ctx.fillStyle = baseColor + `${0.8 + Math.pow(normHighs, 2)*1.2 + angryIntensity})`;
+        
+        // Left Eye (Angry slanted triangular blade - Larger and Higher)
+        ctx.beginPath();
+        ctx.moveTo(-55, -50 + idlePulse); // Outer top (wider, higher)
+        ctx.lineTo(-12, -22 + anger + idlePulse); // Inner sharp point (nose)
+        ctx.lineTo(-30, -35 + idlePulse); // Inner top edge
+        ctx.closePath();
+        ctx.fill();
+        
+        // Right Eye
+        ctx.beginPath();
+        ctx.moveTo(55, -50 + idlePulse);
+        ctx.lineTo(12, -22 + anger + idlePulse);
+        ctx.lineTo(30, -35 + idlePulse);
+        ctx.closePath();
+        ctx.fill();
+
+        // --- 2. THE MOUTH (Sharp distinct fangs) ---
+        const numBars = 25; // Fewer bars for more distinct teeth
+        const totalMouthWidth = 140; 
+        const unitWidth = (totalMouthWidth / 2) / numBars; // Space for one tooth + gap
+        const barWidth = unitWidth * 0.4; // Tooth takes 40% of space, gap is 60%
+        
+        const mouthY = 20 + idlePulse; 
+
+        // Glowing teeth
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = baseColor + '1)';
+        ctx.fillStyle = baseColor + '1)';
+        
+        for (let i = 0; i < numBars; i++) {
+            const binIndex = 5 + Math.floor(i * (40 / numBars));
+            const value = dataArray[binIndex]; 
+            
+            // INCREASED DYNAMICS:
+            // Heavy metal is heavily compressed, pushing raw values constantly to >200.
+            // By cubing the normalized value, 200 (0.78) drops to 0.48, while 255 stays 1.0.
+            // This creates a MASSIVE amplitude of visual oscillation on aggressive tracks.
+            const dynamicValue = Math.pow(value / 255, 3);
+            
+            // Random glitch in teeth height to make it less perfect (more demonic)
+            const jaggedEdge = 1 + ((i % 3 === 0) ? 0.2 : 0);
+
+            // Limit max height but allow brutal spikes
+            let rawHeight = dynamicValue * 70 * jaggedEdge; 
+            if (isAngry && value < 20) rawHeight = 15; 
+            
+            // Taper to make it look like a Jaw, not an oval
+            const taper = 1 - Math.pow(i / numBars, 2); // Sharper drop-off at edges
+            const finalHeight = rawHeight * taper + 2; 
+            
+            const xRight = (i * unitWidth);
+            const xLeft = -(i * unitWidth) - unitWidth;
+            
+            // Lower Fangs grow DOWN
+            ctx.fillRect(xRight + unitWidth/2, mouthY, barWidth, finalHeight);
+            ctx.fillRect(xLeft + unitWidth/2, mouthY, barWidth, finalHeight);
+            
+            // Upper Fangs grow UP (shorter, slightly offset max height)
+            const upperFinalHeight = finalHeight * 0.5 + 2;
+            ctx.fillRect(xRight + unitWidth/2, mouthY - upperFinalHeight - 4, barWidth, upperFinalHeight);
+            ctx.fillRect(xLeft + unitWidth/2, mouthY - upperFinalHeight - 4, barWidth, upperFinalHeight);
+        }
+
+        // --- 3. WAVE EFFECT (Intense moments) ---
+        if (bass > 240 && Math.random() > 0.8 && !isAngry) {
+            activeWaves.push({r: 50, maxR: 300, speed: 6 + Math.random() * 4, alpha: 1});
+        }
+        
+        if (activeWaves.length > 0) {
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 1; // Thinner waves
+            for (let i = activeWaves.length - 1; i >= 0; i--) {
+                const w = activeWaves[i];
+                ctx.strokeStyle = baseColor + `${w.alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.ellipse(0, idlePulse, w.r, w.r * 0.7, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                w.r += w.speed;
+                w.alpha -= 0.02; 
+                if (w.alpha <= 0) {
+                    activeWaves.splice(i, 1);
+                }
+            }
+        }
+
+        ctx.restore();
+    };
+
+    // --- DORMANT STATE (Cold Sleep) ---
+    let idleTime = 0;
+    const drawIdleFace = () => {
+        if (isInitialized) return; // Audio has taken over
+        requestAnimationFrame(drawIdleFace);
+        if (!ctx) return;
+        
+        idleTime += 0.01;
+        const rect = canvas.getBoundingClientRect();
+        const cw = rect.width;
+        const ch = rect.height;
+        ctx.clearRect(0, 0, cw, ch);
+        
+        ctx.save();
+        ctx.translate(cw / 2, ch * 0.4);
+        const baseScale = Math.min(cw / 120, ch / 150); 
+        ctx.scale(baseScale, baseScale);
+        
+        const idlePulse = Math.sin(idleTime) * 2;
+        const breathe = Math.sin(idleTime * 2.5); // Ambient breath
+        
+        // Dim idle color (sleeping obsidian gold)
+        ctx.shadowBlur = 10 + (breathe + 1) * 5;
+        ctx.shadowColor = 'rgba(212, 175, 55, 0.15)';
+        ctx.fillStyle = 'rgba(212, 175, 55, 0.15)';
+        
+        // Sleeping Eyes (Narrow horizontal slits)
+        ctx.beginPath();
+        ctx.moveTo(-50, -45 + idlePulse);
+        ctx.lineTo(-15, -38 + idlePulse);
+        ctx.lineTo(-45, -43 + idlePulse);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(50, -45 + idlePulse);
+        ctx.lineTo(15, -38 + idlePulse);
+        ctx.lineTo(45, -43 + idlePulse);
+        ctx.closePath();
+        ctx.fill();
+
+        // Closed Mouth (barely breathing fangs)
+        const numBars = 25; 
+        const totalMouthWidth = 140; 
+        const unitWidth = (totalMouthWidth / 2) / numBars; 
+        const barWidth = unitWidth * 0.4;
+        const mouthY = 20 + idlePulse; 
+        
+        for (let i = 0; i < numBars; i++) {
+            const taper = 1 - Math.pow(i / numBars, 2); 
+            const finalHeight = (2 + (breathe + 1)) * taper + 1; // 2 to 4px
+            
+            const xRight = (i * unitWidth);
+            const xLeft = -(i * unitWidth) - unitWidth;
+            
+            ctx.fillRect(xRight + unitWidth/2, mouthY, barWidth, finalHeight);
+            ctx.fillRect(xLeft + unitWidth/2, mouthY, barWidth, finalHeight);
+            
+            const upperFinalHeight = finalHeight * 0.5 + 1;
+            ctx.fillRect(xRight + unitWidth/2, mouthY - upperFinalHeight - 2, barWidth, upperFinalHeight);
+            ctx.fillRect(xLeft + unitWidth/2, mouthY - upperFinalHeight - 2, barWidth, upperFinalHeight);
+        }
+        
+        ctx.restore();
+    };
+
+    // Ignite dormant animation
+    drawIdleFace();
+
+    // Event Listeners for Audio State
+    audio.addEventListener('play', () => {
+        initAudio();
+        if(audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        isAngry = false;
+        if(overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.transform = 'scale(1.1)';
+            overlay.style.pointerEvents = 'none';
+        }
+        if(statusText) {
+            statusText.textContent = 'NEURO_LINK // АКТИВНЫЙ_РЕЗОНАНС';
+            statusText.classList.add('animate-pulse', 'text-cyber-primary');
+            statusText.classList.remove('text-red-500');
+        }
+    });
+
+    audio.addEventListener('pause', () => {
+        if(overlay) {
+            overlay.style.opacity = '1';
+            overlay.style.transform = 'scale(1)';
+        }
+        if (audio.currentTime > 0 && audio.currentTime < audio.duration) {
+            isAngry = true;
+            if(statusText) {
+                statusText.textContent = 'ВТОРЖЕНИЕ // ПОТОК_ПРЕРВАН';
+                statusText.classList.remove('text-cyber-primary');
+                statusText.classList.add('text-red-500', 'animate-pulse');
+            }
+        } else {
+            isAngry = false;
+            if(statusText) statusText.textContent = 'ЗАТВОР_ПРИОТКРЫТ // ПАУЗА';
+        }
+    });
+
+    audio.addEventListener('ended', () => {
+        isAngry = false;
+        if(overlay) {
+            overlay.style.opacity = '1';
+            overlay.style.transform = 'scale(1)';
+        }
+        if(statusText) {
+            statusText.textContent = 'ПОТОК_ЗАВЕРШЕН // СОН';
+            statusText.classList.remove('animate-pulse', 'text-red-500');
+            statusText.classList.add('text-cyber-primary');
+        }
+    });
+
+    // Canvas click to toggle resonance (Play/Pause)
+    canvas.addEventListener('click', () => {
+        if (audio.paused) {
+            audio.play();
+        } else {
+            audio.pause();
+        }
+    });
+
+    // Lyrics Toggle Logic
+    let lyricsOpen = false;
+    if(lyricsBtn && lyricsContent) {
+        lyricsBtn.addEventListener('click', () => {
+            lyricsOpen = !lyricsOpen;
+            if (lyricsOpen) {
+                lyricsContent.style.maxHeight = '2000px'; 
+                lyricsContent.style.opacity = '1';
+                lyricsContent.style.marginTop = '2rem';
+                lyricsBtn.classList.add('text-cyber-primary');
+            } else {
+                lyricsContent.style.maxHeight = '0';
+                lyricsContent.style.opacity = '0';
+                lyricsContent.style.marginTop = '0';
+                lyricsBtn.classList.remove('text-cyber-primary');
+            }
+        });
+    }
+  });
+</script>
+
+<style>
+  .nadir-voice-altar {
+    /* Pure void */
+  }
+
+  .glow-text {
+    text-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+  }
+  
+  .text-shadow-heavy {
+    text-shadow: 0 2px 8px rgba(0,0,0,1);
+  }
+
+  /* Brightness-no-bg to strip the grey background of the default player when inverted */
+  .brightness-no-bg {
+     filter: invert(1) hue-rotate(180deg) brightness(1.5) contrast(1.2);
+  }
+
+  audio {
+    outline: none;
+    border: none;
+    /* Extra magic to hide pseudo-elements of native players if needed */
+  }
+  
+  .pulse-slow {
+    animation: pulseSlow 4s infinite ease-in-out;
+  }
+  
+  @keyframes pulseSlow {
+    0%, 100% { opacity: 0.1; transform: scale(0.95); }
+    50% { opacity: 0.3; transform: scale(1.05); }
+  }
+</style>
