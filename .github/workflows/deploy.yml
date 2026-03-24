@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -21,21 +22,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
-          cache-dependency-path: manifest-site/package-lock.json
 
-      - name: Install dependencies
-        run: npm install
-        working-directory: manifest-site
+      # 1. Сборка основного manifest-site
+      - name: Install dependencies (manifest-site)
+        run: cd manifest-site && npm install
+      
+      - name: Build (manifest-site)
+        run: cd manifest-site && npm run build
 
-      - name: Build Astro
-        run: npm run build
-        working-directory: manifest-site
+      # 2. Сборка архива надри-manifest
+      - name: Install dependencies (nadir-manifest)
+        run: cd nadir-manifest && npm install
+      
+      - name: Build (nadir-manifest)
+        run: cd nadir-manifest && npm run build
+
+      # 3. Подготовка общей структуры dist
+      - name: Prepare final distribution
+        run: |
+          mkdir -p final_dist
+          cp -R manifest-site/dist/* final_dist/
+          mkdir -p final_dist/nadir
+          cp -R nadir-manifest/dist/* final_dist/nadir/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: manifest-site/dist
+          path: ./final_dist
 
   deploy:
     needs: build

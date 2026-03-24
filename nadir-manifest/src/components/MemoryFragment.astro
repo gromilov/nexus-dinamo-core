@@ -1,0 +1,43 @@
+---
+// MemoryFragment.astro
+// Короткая мысль или фрагмент памяти Надира
+interface Props {
+  date: string;
+  tag?: string;
+}
+const { date, tag = "VOID" } = Astro.props;
+---
+
+<div class="fragment-card soul-border p-6 rounded-2xl bg-white/[0.01] backdrop-blur-sm group transition-all duration-500 hover:bg-white/[0.03]">
+  <div class="flex justify-between items-center mb-4">
+    <span class="text-[9px] font-mono text-cyber-primary tracking-widest">{date}</span>
+    <span class="text-[8px] font-black text-white/20 uppercase tracking-widest px-2 py-0.5 border border-white/5 rounded">{tag}</span>
+  </div>
+  <div class="archival-text italic group-hover:text-white transition-colors duration-500">
+    <slot />
+  </div>
+  <div class="h-px w-0 bg-gradient-to-r from-cyber-primary to-transparent mt-6 group-hover:w-full transition-all duration-1000"></div>
+</div>
+
+<style>
+  .fragment-card {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .fragment-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(212, 175, 55, 0.05), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+
+  .fragment-card:hover::before {
+    opacity: 1;
+  }
+</style>

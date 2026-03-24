@@ -1,0 +1,40 @@
+---
+interface Props {
+  variant?: 'primary' | 'secondary' | 'outline';
+  type?: 'button' | 'submit';
+  class?: string;
+  [key: string]: any;
+}
+
+const { variant = 'primary', type = 'button', class: className, href, ...rest } = Astro.props;
+
+const Element = href ? 'a' : 'button';
+
+const variants = {
+  primary: "bg-cyber-primary text-cyber-bg hover:bg-cyber-accent hover:text-cyber-bg shadow-[0_10px_20px_rgba(212,175,55,0.2)]",
+  secondary: "bg-cyber-secondary text-white hover:bg-cyber-primary hover:text-cyber-bg shadow-[0_10px_20px_rgba(139,109,31,0.2)]",
+  outline: "bg-transparent border-2 border-cyber-primary text-cyber-primary hover:bg-cyber-primary hover:text-cyber-bg shadow-[0_0_15px_rgba(212,175,55,0.1)]"
+};
+---
+
+<Element 
+  type={href ? undefined : type} 
+  href={href}
+  class:list={[
+    "py-3 px-6 rounded-xl transition-all uppercase tracking-[0.2em] text-[10px] font-heading font-black active:scale-[0.98] cursor-pointer relative overflow-hidden group/btn flex items-center justify-center gap-2 no-underline text-center",
+    variants[variant],
+    className
+  ]}
+  {...rest}
+>
+  <span class="relative z-10 transition-transform group-hover/btn:scale-105 inline-block">
+    <slot />
+  </span>
+  <div class="absolute top-0 -left-full w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover/btn:animate-[shimmer_1.5s_infinite]"></div>
+</Element>
+
+<style>
+  @keyframes shimmer {
+    100% { left: 100%; }
+  }
+</style>

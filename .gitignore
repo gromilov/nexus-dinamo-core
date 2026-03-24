@@ -21,7 +21,7 @@ private_core/
 *.swp
 *.swo
 .gemini/
-
+test/
 # Шаблоны и исходники Споры (ИЗОЛЯЦИЯ)
 SPORE/
 

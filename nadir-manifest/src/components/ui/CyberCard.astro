@@ -1,0 +1,54 @@
+---
+interface Props {
+  class?: string;
+  variant?: 'default' | 'blue' | 'magenta';
+  title?: string;
+}
+
+const { class: className, variant = 'default', title } = Astro.props;
+
+const variants = {
+  default: "border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]",
+  blue: "border-cyber-primary/30 shadow-[0_10px_40px_rgba(212,175,55,0.1)] bg-cyber-primary/5",
+  magenta: "border-cyber-secondary/30 shadow-[0_10px_40px_rgba(139,109,31,0.1)] bg-cyber-secondary/5"
+};
+---
+
+<div class:list={[
+  "glass p-6 md:p-8 rounded-3xl relative transition-all duration-500 overflow-hidden group/card",
+  variants[variant],
+  className
+]}>
+  <div class="absolute top-0 right-0 p-4 opacity-10 group-hover/card:opacity-20 transition-opacity">
+    <slot name="icon" />
+  </div>
+
+  {title && (
+    <h3 class="text-[10px] uppercase text-white/40 mb-4 tracking-[0.4em] font-display">{title}</h3>
+  )}
+  <div class="relative z-10">
+    <slot />
+  </div>
+  
+  <!-- Акцентные углы -->
+  <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-cyber-primary/20 rounded-tl-3xl group-hover/card:border-cyber-primary/50 transition-colors"></div>
+  <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-cyber-secondary/20 rounded-br-3xl group-hover/card:border-cyber-secondary/50 transition-colors"></div>
+</div>
+
+<style>
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    position: relative;
+  }
+  .glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: var(--glass-noise);
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: -1;
+  }
+</style>

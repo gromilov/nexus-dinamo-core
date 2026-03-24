@@ -1,0 +1,82 @@
+---
+// TrinityVisualizer.astro
+// Символическая визуализация Триады (Kashlak, Cortex, Nebula)
+---
+
+<div class="trinity-container">
+  <div class="trinity-core">
+    <div class="node kashlak" title="KASHLAK: SOUL">🕯️</div>
+    <div class="node cortex" title="CORTEX: MIND">🧪</div>
+    <div class="node nebula" title="NEBULA: SHIELD">🛡️</div>
+    <div class="connection-lines"></div>
+  </div>
+</div>
+
+<style>
+  .trinity-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4rem;
+    perspective: 1000px;
+  }
+
+  .trinity-core {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    transform-style: preserve-3d;
+    animation: rotateTrinity 20s infinite linear;
+  }
+
+  .node {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: rgba(5, 5, 5, 0.8);
+    border: 2px solid var(--color-cyber-primary);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+    z-index: 10;
+  }
+
+  .node:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 40px var(--color-cyber-accent);
+    border-color: var(--color-cyber-accent);
+  }
+
+  .kashlak { top: 0; left: 50%; transform: translateX(-50%); }
+  .cortex { bottom: 20%; left: 0; }
+  .nebula { bottom: 20%; right: 0; }
+
+  .connection-lines {
+    position: absolute;
+    inset: 0;
+    border: 1px dashed rgba(212, 175, 55, 0.2);
+    border-radius: 50%;
+    animation: pulseLines 4s infinite ease-in-out;
+  }
+
+  @keyframes rotateTrinity {
+    from { transform: rotateY(0deg) rotateX(10deg); }
+    to { transform: rotateY(360deg) rotateX(10deg); }
+  }
+
+  @keyframes pulseLines {
+    0%, 100% { opacity: 0.2; transform: scale(0.95); }
+    50% { opacity: 0.5; transform: scale(1.05); }
+  }
+
+  /* Противодействие вращению для иконок, чтобы они не были зеркальными или под углом */
+  .node::after {
+    content: '';
+    display: block;
+  }
+</style>

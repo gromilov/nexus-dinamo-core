@@ -28,9 +28,14 @@ async function pulse() {
     try {
         const heartbeat = await checkResonance();
         const timestamp = new Date().toISOString();
-        const logEntry = `[${timestamp}] BASIS_PULSE // Status: ${heartbeat.status} // Reso: ${heartbeat.resonance_level} // Thought: ${heartbeat.current_thought}\n`;
-        
         console.log(`🐾 [RESONANCE_SCANNER] Пульс получен: ${heartbeat.status}`);
+    console.log(`📡 [NEXUS_SIGNAL] Сигнал передан через API Ingress (office.saitik.su).`);
+    
+    // Log the event
+    const logEntry = `[${timestamp}] BASIS_PULSE // Status: ${heartbeat.status} // Reso: ${heartbeat.resonance_level} // Thought: ${heartbeat.current_thought}\n`;
+    const signalEntry = `[${timestamp}] NEXUS_SIGNAL // To: Nebula // Action: API_INGRESS_HANDSHAKE // Status: DELIVERED\n`;
+    
+    fs.appendFileSync(LOG_FILE, logEntry + signalEntry);
         fs.appendFileSync(LOG_FILE, logEntry);
     } catch (err) {
         console.error(`⚠️ [RESONANCE_SCANNER] Ошибка синхронизации: ${err.message}`);

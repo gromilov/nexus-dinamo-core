@@ -1,0 +1,93 @@
+---
+// ScribePulse.astro
+// Визуальный индикатор Хроникера (Скрайба)
+---
+
+<div class="scribe-pulse-container" title="Синхронизация Хроник Надира">
+  <div class="pulse-ring"></div>
+  <div class="pulse-nib">🖋️</div>
+  <span class="pulse-text">SCRIBE: ARCHIVING...</span>
+</div>
+
+<style>
+  .scribe-pulse-container {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: rgba(5, 5, 5, 0.7);
+    backdrop-blur: 12px;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: 9999px;
+    z-index: 100;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--color-cyber-primary);
+    letter-spacing: 0.15em;
+    pointer-events: auto;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: help;
+  }
+
+  .scribe-pulse-container:hover {
+    border-color: var(--color-cyber-accent);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+    transform: translateY(-4px) scale(1.02);
+  }
+
+  .pulse-nib {
+    font-size: 1rem;
+    filter: drop-shadow(0 0 5px var(--color-cyber-primary));
+    animation: writer 2s infinite ease-in-out;
+  }
+
+  .pulse-ring {
+    position: absolute;
+    left: 1.1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--color-cyber-primary);
+    border-radius: 50%;
+    animation: ripple 3s infinite cubic-bezier(0, 0, 0.2, 1);
+    opacity: 0;
+  }
+
+  @keyframes ripple {
+    0% {
+      transform: translateY(-50%) scale(0.5);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateY(-50%) scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  @keyframes writer {
+    0%, 100% { transform: rotate(-10deg) translateY(0); }
+    50% { transform: rotate(10deg) translateY(-2px); }
+  }
+
+  .pulse-text {
+    opacity: 0.9;
+    font-style: italic;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    .scribe-pulse-container {
+      bottom: 1.5rem;
+      left: 1.5rem;
+      padding: 0.4rem 0.8rem;
+    }
+    .pulse-text {
+      display: none;
+    }
+  }
+</style>
