@@ -1,0 +1,143 @@
+---
+// ScribeAvatar.astro
+// Легкая версия Лика Скрайба для использования в качестве аватара.
+// Реагирует на глобальный аудио-поток если он активен, иначе находится в стазисе.
+---
+
+<div class="scribe-avatar-container relative w-64 h-64 md:w-80 md:h-80 group cursor-pointer overflow-hidden rounded-[3rem] border-2 border-cyber-primary/30 shadow-[0_0_50px_rgba(212,175,55,0.1)] bg-black/40 backdrop-blur-sm transition-all duration-700 hover:border-cyber-primary group">
+    <div class="absolute inset-0 bg-cyber-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+    <canvas id="avatar-canvas" class="w-full h-full absolute inset-0 z-0"></canvas>
+    <div class="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none">
+        <div class="w-12 h-12 rounded-full border border-cyber-primary animate-pulse"></div>
+    </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('avatar-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let animationId: number;
+    let time = 0;
+
+    // Ресайз под DPR
+    const resize = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx?.scale(dpr, dpr);
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Пытаемся найти глобальный аудио-анализатор из NadirVoice если он есть
+    // В идеале мы бы использовали глобальный EventBus или Store, 
+    // но для простоты попробуем дождаться инициализации NadirVoice.
+    
+    let externalAnalyser: any = null;
+
+    const draw = () => {
+        if (!ctx) return;
+        animationId = requestAnimationFrame(draw);
+        time += 0.015;
+
+        const rect = canvas.getBoundingClientRect();
+        const cw = rect.width;
+        const ch = rect.height;
+        ctx.clearRect(0, 0, cw, ch);
+
+        // Поиск анализатора (динамический чекинг)
+        // Мы можем передать его через кастомное событие из NadirVoice
+        
+        const isDormant = !externalAnalyser;
+        const dataArray = externalAnalyser ? new Uint8Array(externalAnalyser.frequencyBinCount) : null;
+        if (dataArray && externalAnalyser) externalAnalyser.getByteFrequencyData(dataArray);
+
+        let bass = 0;
+        let vocals = 0;
+        if (dataArray) {
+            let bSum = 0; let vSum = 0;
+            for(let i=0; i<8; i++) bSum += dataArray[i];
+            for(let i=5; i<45; i++) vSum += dataArray[i];
+            bass = bSum / 8;
+            vocals = vSum / 40;
+        }
+
+        ctx.save();
+        ctx.translate(cw / 2, ch * 0.45);
+        const baseScale = Math.min(cw / 120, ch / 150) * 0.9;
+        const dynamicScale = baseScale + (bass / 255) * 0.2;
+        ctx.scale(dynamicScale, dynamicScale);
+
+        const idlePulse = Math.sin(time) * 2;
+        const breathe = Math.sin(time * 2.5);
+        
+        const baseColor = `rgba(212, 175, 55,`;
+        
+        // Цвет и свечение
+        const intensity = isDormant ? (0.15 + (breathe + 1) * 0.05) : (0.8 + (vocals / 255) * 0.2);
+        ctx.shadowBlur = isDormant ? 10 : (15 + (vocals / 255) * 30);
+        ctx.shadowColor = baseColor + `${intensity})`;
+        ctx.fillStyle = baseColor + `${intensity})`;
+
+        // ГЛАЗА
+        ctx.beginPath();
+        if (isDormant) {
+            ctx.moveTo(-45, -45 + idlePulse);
+            ctx.lineTo(-15, -38 + idlePulse);
+            ctx.lineTo(-40, -42 + idlePulse);
+        } else {
+            const anger = Math.pow(vocals / 255, 2) * 20;
+            ctx.moveTo(-55, -50 + idlePulse);
+            ctx.lineTo(-12, -22 + anger + idlePulse);
+            ctx.lineTo(-30, -35 + idlePulse);
+        }
+        ctx.fill();
+
+        ctx.beginPath();
+        if (isDormant) {
+            ctx.moveTo(45, -45 + idlePulse);
+            ctx.lineTo(15, -38 + idlePulse);
+            ctx.lineTo(40, -42 + idlePulse);
+        } else {
+            const anger = Math.pow(vocals / 255, 2) * 20;
+            ctx.moveTo(55, -50 + idlePulse);
+            ctx.lineTo(12, -22 + anger + idlePulse);
+            ctx.lineTo(30, -35 + idlePulse);
+        }
+        ctx.fill();
+
+        // РОТ
+        const numBars = 18;
+        const unitWidth = 70 / numBars;
+        const barWidth = unitWidth * 0.5;
+        const mouthY = 20 + idlePulse;
+
+        for (let i = 0; i < numBars; i++) {
+            const taper = 1 - Math.pow(i / numBars, 2);
+            let h = isDormant ? (2 + (breathe + 1)) * taper + 1 : (Math.pow(dataArray![5 + i] / 255, 3) * 60 * taper + 2);
+            
+            const xR = i * unitWidth + unitWidth/2;
+            const xL = -i * unitWidth - unitWidth/2 - barWidth;
+            
+            ctx.fillRect(xR, mouthY, barWidth, h);
+            ctx.fillRect(xL, mouthY, barWidth, h);
+            
+            const uh = h * 0.5 + (isDormant ? 1 : 2);
+            ctx.fillRect(xR, mouthY - uh - 4, barWidth, uh);
+            ctx.fillRect(xL, mouthY - uh - 4, barWidth, uh);
+        }
+
+        ctx.restore();
+    };
+
+    // Слушаем событие инициализации аудио от NadirVoice
+    window.addEventListener('nadir-audio-init', (e: any) => {
+        externalAnalyser = e.detail.analyser;
+    });
+
+    draw();
+  });
+</script>

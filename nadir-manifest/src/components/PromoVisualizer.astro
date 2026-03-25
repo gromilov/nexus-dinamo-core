@@ -1,0 +1,438 @@
+---
+// PromoVisualizer.astro
+// Вертикальный 9:16 модуль для генерации рекламного Резонанса
+---
+
+<div class="promo-generator-container w-full max-w-[450px] mx-auto aspect-[9/16] relative overflow-hidden flex flex-col border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(212,175,55,0.05)] bg-[#020205]">
+  
+  <!-- The Canvas for Web Audio Visuals (Face, Text, Background) -->
+  <canvas id="promo-canvas" class="absolute inset-0 w-full h-full z-0 pointer-events-none"></canvas>
+
+  <!-- Dedicated STOP button during recording -->
+  <div id="stop-layer" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 hidden opacity-0 transition-opacity duration-300">
+    <button id="btn-stop" class="flex items-center justify-center gap-2 bg-red-600/80 backdrop-blur-md text-white border border-red-500 font-black uppercase text-sm px-8 py-4 rounded-full shadow-[0_0_30px_rgba(220,38,38,0.5)] hover:bg-red-500 transition-colors tracking-widest animate-pulse w-48 mx-auto">
+        <div class="w-4 h-4 rounded-sm bg-white"></div>
+        СТОП
+    </button>
+  </div>
+
+  <!-- UI Controls (Visible during configuration, hidden during recording) -->
+  <div id="promo-ui" class="absolute inset-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black via-black/80 to-transparent p-4 sm:p-6 pb-6 transition-opacity duration-500">
+     
+     <div class="space-y-4 w-full backdrop-blur-md bg-black/60 p-5 rounded-2xl border border-white/10 shadow-2xl">
+        
+        <!-- Audio Input -->
+        <div class="flex flex-col space-y-2">
+           <label class="text-[10px] font-mono text-cyber-primary uppercase tracking-widest pl-1">ЗАГРУЗИТЬ АУДИО (СЕМЯ)</label>
+           <input type="file" id="audio-upload" accept="audio/*" class="text-[10px] font-mono text-white/70 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[9px] file:font-mono file:bg-cyber-primary/20 file:text-cyber-primary hover:file:bg-cyber-primary/30 transition-all cursor-pointer w-full"/>
+        </div>
+
+        <!-- Color Palette Picker -->
+        <div class="flex flex-col space-y-2 pt-1 border-t border-white/10">
+           <label class="text-[9px] font-mono text-cyber-muted uppercase tracking-widest pl-1 pt-2">ВЫБОР ЦВЕТА</label>
+           <div class="flex justify-between items-center w-full px-1" id="color-palette">
+              <!-- Colors added via JS -->
+           </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-white/10 mt-2">
+           <!-- Play/Record Button -->
+           <button id="btn-record" class="flex items-center justify-center gap-2 bg-cyber-primary text-black font-black uppercase text-[10px] px-5 py-2.5 rounded hover:bg-white transition-colors tracking-widest disabled:opacity-50 disabled:cursor-not-allowed group shadow-[0_0_20px_rgba(0,243,255,0.3)]" disabled>
+              <div class="w-2.5 h-2.5 rounded-full bg-red-600 group-hover:bg-red-500 animate-pulse"></div>
+              ЗАПИСЬ
+           </button>
+           
+           <span id="recording-status" class="text-[9px] font-mono text-cyber-muted uppercase tracking-widest text-right leading-tight max-w-[120px]">ОЖИДАНИЕ ТРЕКА...</span>
+        </div>
+        
+     </div>
+  </div>
+
+  <!-- Hidden Audio Element -->
+  <audio id="promo-audio" class="hidden" crossorigin="anonymous"></audio>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const audioUpload = document.getElementById('audio-upload') as HTMLInputElement;
+    const btnRecord = document.getElementById('btn-record') as HTMLButtonElement;
+    const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
+    const canvas = document.getElementById('promo-canvas') as HTMLCanvasElement;
+    const audio = document.getElementById('promo-audio') as HTMLAudioElement;
+    
+    const uiLayer = document.getElementById('promo-ui');
+    const stopLayer = document.getElementById('stop-layer');
+    const statusText = document.getElementById('recording-status');
+    const paletteContainer = document.getElementById('color-palette');
+
+    if (!audioUpload || !btnRecord || !canvas || !audio || !btnStop || !paletteContainer) return;
+
+    // --- State & Context ---
+    let audioContext: AudioContext;
+    let analyser: AnalyserNode;
+    let source: MediaElementAudioSourceNode;
+    let mediaRecorder: MediaRecorder | null = null;
+    let recordedChunks: Blob[] = [];
+    let isInitialized = false;
+    let isRecording = false;
+
+    // 9-Color Palette
+    const colors = [
+        { name: 'Gold', value: '212, 175, 55', hex: '#D4AF37' },
+        { name: 'Cyan', value: '0, 243, 255', hex: '#00F3FF' },
+        { name: 'Magenta', value: '255, 0, 255', hex: '#FF00FF' },
+        { name: 'Lime', value: '204, 255, 0', hex: '#CCFF00' },
+        { name: 'Crimson', value: '255, 50, 50', hex: '#FF3232' },
+        { name: 'Purple', value: '150, 50, 255', hex: '#9632FF' },
+        { name: 'Blue', value: '100, 150, 255', hex: '#6496FF' },
+        { name: 'White', value: '255, 255, 255', hex: '#FFFFFF' },
+        { name: 'Orange', value: '255, 120, 0', hex: '#FF7800' }
+    ];
+    let selectedColor = colors[0].value; // Default Gold
+
+    // Initialize Color Palette UI
+    colors.forEach((c, i) => {
+        const btn = document.createElement('button');
+        btn.className = `w-5 h-5 rounded-full border-2 transition-transform hover:scale-125 focus:outline-none ${i === 0 ? 'border-white scale-125' : 'border-black'}`;
+        btn.style.backgroundColor = c.hex;
+        btn.style.boxShadow = `0 0 8px rgba(${c.value}, 0.5)`;
+        
+        btn.addEventListener('click', () => {
+            selectedColor = c.value;
+            // Update UI
+            Array.from(paletteContainer.children).forEach(child => {
+                (child as HTMLElement).classList.remove('border-white', 'scale-125');
+                (child as HTMLElement).classList.add('border-black');
+            });
+            btn.classList.add('border-white', 'scale-125');
+            btn.classList.remove('border-black');
+        });
+        
+        paletteContainer.appendChild(btn);
+    });
+
+    // Canvas Setup
+    const ctx = canvas.getContext('2d');
+    const setupCanvas = () => {
+        const width = 1080;
+        const height = 1920;
+        canvas.width = width;
+        canvas.height = height;
+    };
+    setupCanvas();
+
+    // 1. Audio Upload Handler
+    audioUpload.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        
+        if (file) {
+            const url = URL.createObjectURL(file);
+            audio.src = url;
+            btnRecord.disabled = false;
+            if(statusText) statusText.textContent = "СЕМЯ ЗАГРУЖЕНО";
+            if(statusText) statusText.classList.add('text-cyber-accent');
+            if(statusText) statusText.classList.remove('text-cyber-muted');
+        }
+    });
+
+    const initAudio = () => {
+        if (!isInitialized) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioContext = new AudioContextClass();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            analyser.smoothingTimeConstant = 0.85;
+
+            source = audioContext.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            
+            isInitialized = true;
+        }
+
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+    };
+
+    // 3. The Visualizer Loop
+    let time = 0;
+    
+    // Grid generation (cached for performance)
+    const cw = 1080;
+    const ch = 1920;
+    const gridCanvas = document.createElement('canvas');
+    gridCanvas.width = cw;
+    gridCanvas.height = ch;
+    const gctx = gridCanvas.getContext('2d');
+    if (gctx) {
+        gctx.strokeStyle = 'rgba(255, 255, 255, 0.012)'; // Extremely faint grid like the reference
+        gctx.lineWidth = 1;
+        const gridSize = 40; // Tighter grid
+        gctx.beginPath();
+        for(let x=0; x<cw; x+=gridSize) { gctx.moveTo(x,0); gctx.lineTo(x,ch); }
+        for(let y=0; y<ch; y+=gridSize) { gctx.moveTo(0,y); gctx.lineTo(cw,y); }
+        gctx.stroke();
+    }
+
+    const drawFrame = () => {
+        if (!ctx) return;
+        requestAnimationFrame(drawFrame);
+
+        // 1. Draw Background (Very deep dark gray/black)
+        ctx.fillStyle = '#050505'; 
+        ctx.fillRect(0, 0, cw, ch);
+        
+        // Draw grid overlay
+        ctx.drawImage(gridCanvas, 0, 0);
+
+        // Subtle radial gradient to match the glow in the image
+        const grad = ctx.createRadialGradient(cw/2, ch/2, 100, cw/2, ch/2, cw*0.8);
+        grad.addColorStop(0, 'rgba(212, 175, 55, 0.02)'); // tiny hint of gold in center
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, cw, ch);
+
+        time += 0.015;
+
+        // Default to zero if dormant
+        const bufferLength = isInitialized ? analyser.frequencyBinCount : 0;
+        const dataArray = new Uint8Array(bufferLength || 512);
+
+        let bassSum = 0;
+        let vocalsSum = 0;
+        let bass = 0;
+        let vocals = 0;
+
+        const isDormant = !isInitialized || audio.paused;
+
+        if (!isDormant) {
+            analyser.getByteFrequencyData(dataArray);
+            for(let i = 0; i < 8; i++) bassSum += dataArray[i];
+            for(let i = 5; i < 45; i++) vocalsSum += dataArray[i];
+            bass = bassSum / 8;
+            vocals = vocalsSum / 40;
+        }
+
+        ctx.save();
+        
+        // --- DRAW TEXT OVERLAYS ---
+        const baseColor = `rgba(${selectedColor},`; 
+        
+        // Footer Text (Small Syndicate branding for Stories bottom edge)
+        if (isRecording || isDormant) {
+            ctx.font = 'normal 400 20px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.letterSpacing = '8px';
+            ctx.shadowBlur = 0;
+            ctx.fillText('СИНДИКАТ', cw/2, ch - 80);
+        }
+        
+        // --- DRAW FACE ---
+        ctx.translate(cw / 2, ch * 0.45); 
+        
+        const baseScale = (cw * 0.8) / 120; // fill 80% width roughly
+        const scale = baseScale + (bass/255) * 0.5; 
+        ctx.scale(scale, scale);
+        
+        const pulse = Math.sin(time) * 2;
+        const breathe = isDormant ? Math.sin(time * 2.5) : 0; 
+
+        // EYES
+        const anger = isDormant ? (-14 + breathe) : Math.pow(vocals / 255, 2.5) * 25; 
+        const eyeGlow = isDormant ? (10 + breathe*3) : (10 + Math.pow(vocals/255, 2) * 50);
+        const opacity = isDormant ? '0.2)' : '0.9)';
+        const shadowOpacity = isDormant ? '0.3)' : '1)';
+
+        ctx.shadowBlur = eyeGlow;
+        ctx.shadowColor = baseColor + shadowOpacity;
+        ctx.fillStyle = baseColor + opacity;
+        
+        ctx.beginPath();
+        // Left Eye (Sleeping slits if dormant, angular shards if active)
+        if(isDormant) {
+           ctx.moveTo(-50, -45 + pulse);
+           ctx.lineTo(-15, -38 + pulse);
+           ctx.lineTo(-45, -43 + pulse);
+        } else {
+           ctx.moveTo(-55, -50 + pulse);
+           ctx.lineTo(-15, -28 + anger + pulse);
+           ctx.lineTo(-30, -35 + pulse);
+        }
+        ctx.fill();
+        
+        ctx.beginPath();
+        // Right Eye
+        if(isDormant) {
+           ctx.moveTo(50, -45 + pulse);
+           ctx.lineTo(15, -38 + pulse);
+           ctx.lineTo(45, -43 + pulse);
+        } else {
+           ctx.moveTo(55, -50 + pulse);
+           ctx.lineTo(15, -28 + anger + pulse);
+           ctx.lineTo(30, -35 + pulse);
+        }
+        ctx.fill();
+
+        // MOUTH (Equalizer / Sleeping Teeth)
+        const numBars = 25;
+        const unitWidth = 70 / numBars; 
+        const barWidth = unitWidth * 0.4;
+        const mouthY = 20 + pulse;
+        
+        ctx.shadowBlur = isDormant ? 5 : 15;
+        
+        for (let i = 0; i < numBars; i++) {
+            const val = isDormant ? 0 : dataArray[5 + Math.floor(i * (40 / numBars))];
+            const dynamicValue = isDormant ? 0 : Math.pow(val / 255, 3);
+            const taper = 1 - Math.pow(i / numBars, 2);
+            
+            const finalHeight = isDormant ? (2 + (breathe + 1)) * taper + 1 : (dynamicValue * 70 * taper) + 2;
+            
+            const xRight = (i * unitWidth);
+            const xLeft = -(i * unitWidth) - unitWidth;
+            
+            // Lower
+            ctx.fillRect(xRight + unitWidth/2, mouthY, barWidth, finalHeight);
+            ctx.fillRect(xLeft + unitWidth/2, mouthY, barWidth, finalHeight);
+            
+            // Upper
+            const uHeight = finalHeight * 0.5 + (isDormant ? 1 : 2);
+            ctx.fillRect(xRight + unitWidth/2, mouthY - uHeight - 4, barWidth, uHeight);
+            ctx.fillRect(xLeft + unitWidth/2, mouthY - uHeight - 4, barWidth, uHeight);
+        }
+
+        ctx.restore();
+    };
+    
+    // Start drawing loop immediately to draw Face in Dormant State
+    drawFrame();
+
+    // 4. Recording Setup
+    const setupRecording = () => {
+        // Optimize for Stories: 30 FPS drastically reduces file size vs 60
+        const canvasStream = canvas.captureStream(30); 
+        
+        let mixedStream;
+        try {
+           const audioDest = audioContext.createMediaStreamDestination();
+           source.connect(audioDest); 
+           
+           const tracks = [
+               ...canvasStream.getVideoTracks(),
+               ...audioDest.stream.getAudioTracks()
+           ];
+           mixedStream = new MediaStream(tracks);
+        } catch(e) {
+           console.warn("Could not merge audio stream, falling back to canvas only", e);
+           mixedStream = canvasStream;
+        }
+
+        // Try most universal format first (MP4 native on Safari/iOS)
+        let mimeType = 'video/mp4';
+        let extension = 'mp4';
+        
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+            // Fallback for Chrome/Firefox Desktop (WebM container, but force H.264 codec for better editor support)
+            mimeType = 'video/webm;codecs=h264';
+            extension = 'webm';
+            
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                // Hard fallback
+                mimeType = 'video/webm'; 
+            }
+        }
+
+        mediaRecorder = new MediaRecorder(mixedStream, { 
+            mimeType: mimeType,
+            videoBitsPerSecond: 8000000 // 8 Mbps: Sweet spot for Instagram/TikTok Stories (quality vs weight)
+        });
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                recordedChunks.push(e.data);
+            }
+        };
+
+        const finalizeRecording = () => {
+            if (recordedChunks.length === 0) return;
+            const blob = new Blob(recordedChunks, { type: mimeType });
+            recordedChunks = [];
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            document.body.appendChild(a);
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `NADIR_PROMO_${Date.now()}.${extension}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            // Reset UI
+            if(uiLayer) uiLayer.style.opacity = '1';
+            if(uiLayer) uiLayer.style.pointerEvents = 'auto';
+            if(stopLayer) {
+                stopLayer.classList.add('hidden');
+                stopLayer.style.opacity = '0';
+                stopLayer.style.pointerEvents = 'none';
+            }
+            if(statusText) {
+                const warnMsg = extension === 'webm' ? ' СКРЫТО В WEBM (НУЖНА КОНВЕРТАЦИЯ ДЛЯ IPHONE)' : '';
+                statusText.textContent = `УСПЕШНО СКАЧАНО (.${extension.toUpperCase()})${warnMsg}`;
+                statusText.classList.remove('text-cyber-muted', 'animate-pulse');
+                statusText.classList.add('text-cyber-accent');
+            }
+            isRecording = false;
+        };
+
+        mediaRecorder.onstop = finalizeRecording;
+    };
+
+    // 5. Action Triggers
+    const stopRecording = () => {
+        if (isRecording && mediaRecorder?.state === 'recording') {
+            audio.pause();
+            mediaRecorder.stop();
+        }
+    };
+
+    btnRecord.addEventListener('click', async () => {
+        if (!audio.src) return;
+        
+        initAudio(); 
+        
+        // Hide Main UI
+        if(uiLayer) uiLayer.style.opacity = '0';
+        if(uiLayer) uiLayer.style.pointerEvents = 'none';
+
+        // Show Dedicated Stop Button
+        if(stopLayer) {
+            stopLayer.classList.remove('hidden');
+            stopLayer.style.pointerEvents = 'auto';
+            setTimeout(()=> stopLayer.style.opacity = '1', 100);
+        }
+
+        setupRecording();
+        
+        audio.currentTime = 0;
+        await audio.play();
+        
+        mediaRecorder?.start(100); 
+        isRecording = true;
+    });
+
+    // Auto stop when audio ends
+    audio.addEventListener('ended', stopRecording);
+
+    // Manual stop via dedicated button
+    btnStop.addEventListener('click', stopRecording);
+  });
+</script>
+
+<style>
+  #color-palette button {
+      flex-shrink: 0;
+  }
+</style>
