@@ -140,14 +140,7 @@
                 
                 // --- PRIMARY: Native Audio (Nadir Pattern) ---
                 if (promoAudio) {
-                    // Use explicit <source> with MIME type hint so Android Chrome
-                    // can pick the correct decoder for blob: URLs (no HTTP headers available)
-                    promoAudio.innerHTML = '';
-                    const sourceEl = document.createElement('source');
-                    sourceEl.src = url;
-                    sourceEl.type = file.type || 'audio/mpeg';
-                    promoAudio.appendChild(sourceEl);
-                    promoAudio.load();
+                    promoAudio.src = url;
                     promoAudio.onended = () => { if (isRecording) stopRecording(); };
                     btnRecord.disabled = false;
                     if(statusText) statusText.textContent = "СЕМЯ ЗАГРУЖЕНО";
