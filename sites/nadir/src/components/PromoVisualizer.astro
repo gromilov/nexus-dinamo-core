@@ -168,33 +168,6 @@
         }
     };
 
-    // ─── WAV encoder: PCM samples → WAV Blob ─────────────────────────────────
-    // WAV = 44-byte header + raw int16 PCM. Zero codec ambiguity on any platform.
-    const audioBufferToWav = (buf: AudioBuffer): Blob => {
-        const ch = buf.numberOfChannels;
-        const sr = buf.sampleRate;
-        const n = buf.length;
-        const dataSize = n * ch * 2; // 16-bit samples
-        const ab = new ArrayBuffer(44 + dataSize);
-        const v = new DataView(ab);
-        const str = (off: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
-        str(0, 'RIFF'); v.setUint32(4, 36 + dataSize, true);
-        str(8, 'WAVE'); str(12, 'fmt ');
-        v.setUint32(16, 16, true); v.setUint16(20, 1, true); // PCM
-        v.setUint16(22, ch, true); v.setUint32(24, sr, true);
-        v.setUint32(28, sr * ch * 2, true); v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
-        str(36, 'data'); v.setUint32(40, dataSize, true);
-        let off = 44;
-        for (let i = 0; i < n; i++) {
-            for (let c = 0; c < ch; c++) {
-                const s = Math.max(-1, Math.min(1, buf.getChannelData(c)[i]));
-                v.setInt16(off, s < 0 ? s * 32768 : s * 32767, true);
-                off += 2;
-            }
-        }
-        return new Blob([ab], { type: 'audio/wav' });
-    };
-
     // 1. Audio Upload Handler
     audioUpload.addEventListener('change', async (e) => {
         const target = e.target as HTMLInputElement;
@@ -208,8 +181,15 @@
         // Desktop: init Web Audio for music-reactive face
         if (!isAndroid) initAudio();
 
-        const loadAudio = (src: string) => {
-            promoAudio.src = src;
+        const loadAudio = (src: string, type: string) => {
+            // Clear previous sources
+            promoAudio.innerHTML = '';
+            // Create source element with explicit MIME type (mimics NadirVoice logic)
+            const source = document.createElement('source');
+            source.src = src;
+            source.type = type;
+            promoAudio.appendChild(source);
+            
             promoAudio.oncanplaythrough = () => {
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
@@ -228,32 +208,18 @@
         };
 
         if (isAndroid) {
-            // ANDROID: decode MP3→PCM via Chrome's native decoder, re-encode as WAV.
-            // WAV blob URLs are universally capturable on Android — no codec ambiguity.
-            try {
-                if (statusText) statusText.textContent = 'ТРАНСКОДИРОВАНИЕ...';
-                const ArrayBufferData = await file.arrayBuffer();
-                const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-                const tempCtx = new AudioContextClass();
-                const decoded = await tempCtx.decodeAudioData(ArrayBufferData);
-                await tempCtx.close();
-                const wavBlob = audioBufferToWav(decoded);
-                const wavUrl = URL.createObjectURL(wavBlob);
-                loadAudio(wavUrl);
-            } catch (err) {
-                console.error('Transcode error:', err);
-                // Fallback: try native blob URL directly
-                if (statusText) statusText.textContent = 'ОШИБКА ТРАНСКОДЕРА — пробуем нативно...';
-                loadAudio(URL.createObjectURL(file));
-            }
+            // Android: use blob URL with explicit MIME type in <source> tag
+            const url = URL.createObjectURL(file);
+            loadAudio(url, file.type || 'audio/mpeg');
         } else {
-            // Desktop: FileReader → data URI (explicit MIME type)
+            // Desktop: FileReader → data URI (MIME is already in the string)
             const reader = new FileReader();
-            reader.onload = () => loadAudio(reader.result as string);
+            reader.onload = () => loadAudio(reader.result as string, file.type || 'audio/mpeg');
             reader.onerror = () => { if (statusText) statusText.textContent = 'Ошибка чтения'; };
             reader.readAsDataURL(file);
         }
     });
+
 
 
 
