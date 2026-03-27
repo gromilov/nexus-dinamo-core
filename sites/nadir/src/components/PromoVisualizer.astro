@@ -169,19 +169,27 @@
 
         hasLoadedFile = false;
         btnRecord.disabled = true;
-        if (statusText) { statusText.textContent = 'ЗАГРУЗКА...'; statusText.classList.remove('text-cyber-accent'); }
+        const fileSizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        if (statusText) { 
+            statusText.textContent = `ЗАГРУЗКА [${fileSizeMb}MB]...`; 
+            statusText.classList.remove('text-cyber-accent'); 
+        }
+
+        if (file.size === 0) {
+            if (statusText) statusText.textContent = 'ОШИБКА: Файл 0 байт. Попробуй выбрать его из папки "Загрузки", а не из "Недавних".';
+            return;
+        }
+
+        if (file.size > 30 * 1024 * 1024) {
+            if (statusText) statusText.textContent = `ОШИБКА: Файл слишком велик (${fileSizeMb}MB > 30MB)`;
+            return;
+        }
 
         // Ensure audio engine is ready (created once)
         initAudio();
         if (audioContext && audioContext.state === 'suspended') {
             audioContext.resume().catch(e => console.warn('Context resume failed', e));
         }
-
-        if (file.size > 30 * 1024 * 1024) {
-            if (statusText) statusText.textContent = `ОШИБКА: Файл слишком велик (${Math.round(file.size/1024/1024)}MB > 30MB)`;
-            return;
-        }
-
         const loadAudio = (src: string, type: string) => {
             // Essential: clear src and sources to avoid ambiguity
             promoAudio.removeAttribute('src');
