@@ -51,6 +51,7 @@
   <!-- Hidden Audio Logic replaced by Howler -->
 </div>
 
+<script>
     import { Howl, Howler } from 'howler';
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -487,12 +488,9 @@
         }
     });
 
-    // Auto stop when audio ends
-    audio.addEventListener('ended', stopRecording);
-
     // Manual stop via dedicated button
     btnStop.addEventListener('click', stopRecording);
-  });
+});
 </script>
 
 <style>
