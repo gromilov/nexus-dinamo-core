@@ -71,8 +71,10 @@
         // --- State & Context ---
         let audioContext: AudioContext;
         let analyser: AnalyserNode;
-        let decodedBuffer: AudioBuffer | null = null;  // Decoded PCM — no MIME issues on Android
+        let decodedBuffer: AudioBuffer | null = null;  // Decoded PCM for visualization
         let activeSource: AudioBufferSourceNode | null = null; // Current playback source
+        let storedFile: File | null = null; // Original file — for Android captureStream path
+        let captureAudioEl: HTMLAudioElement | null = null; // Android audio capture element
         let mediaRecorder: MediaRecorder | null = null;
         let recordedChunks: Blob[] = [];
         let isInitialized = false;
@@ -168,17 +170,20 @@
                 activeSource = null;
                 decodedBuffer = null;
 
-                // Fetch the file as ArrayBuffer — this is format-agnostic on all platforms
+                // Keep original file reference for Android captureStream path
+                storedFile = file;
+
+                // Fetch the file as ArrayBuffer — format-agnostic on all platforms
                 const url = URL.createObjectURL(file);
                 const response = await fetch(url);
                 const arrayBuffer = await response.arrayBuffer();
                 URL.revokeObjectURL(url);
 
-                // Decode to raw PCM — no MIME confusion, works on Android/iOS/Desktop
+                // Decode to raw PCM for visualization
                 decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
+                const dur = Math.round(decodedBuffer.duration);
                 btnRecord.disabled = false;
-                if(statusText) statusText.textContent = "СЕМЯ ДЕКОДИРОВАНО";
+                if(statusText) statusText.textContent = `СЕМЯ ДЕКОДИРОВАНО [${dur}с]`;
                 if(statusText) statusText.classList.add('text-cyber-accent');
                 if(statusText) statusText.classList.remove('text-cyber-muted');
 
@@ -349,16 +354,39 @@
         // Optimize for Stories: 30 FPS drastically reduces file size vs 60
         const canvasStream = canvas.captureStream(30); 
         
-        let mixedStream;
+        let mixedStream: MediaStream;
+        const isAndroid = /Android/i.test(navigator.userAgent);
+
         try {
-           const audioDest = audioContext.createMediaStreamDestination();
-           analyser.connect(audioDest); 
-           
-           const tracks = [
-               ...canvasStream.getVideoTracks(),
-               ...audioDest.stream.getAudioTracks()
-           ];
-           mixedStream = new MediaStream(tracks);
+            let audioTracks: MediaStreamTrack[] = [];
+
+            // Android: use captureStream() on native audio element — more reliable than Web Audio MediaStreamDest
+            if (isAndroid && storedFile && typeof (HTMLAudioElement.prototype as any).captureStream === 'function') {
+                // Cleanup previous capture element
+                if (captureAudioEl) { captureAudioEl.pause(); captureAudioEl.src = ''; }
+                captureAudioEl = new Audio();
+                // Explicitly typed blob to help Android codec selection
+                const typedBlob = new Blob([storedFile], { type: storedFile.type || 'audio/mpeg' });
+                captureAudioEl.src = URL.createObjectURL(typedBlob);
+                captureAudioEl.volume = 0; // Muted — user hears through Web Audio
+                const capStream = (captureAudioEl as any).captureStream() as MediaStream;
+                audioTracks = capStream.getAudioTracks();
+                console.log('[Capture] Android captureStream tracks:', audioTracks.length);
+            }
+            
+            // Desktop/fallback: Web Audio MediaStreamDestination
+            if (audioTracks.length === 0) {
+                const audioDest = audioContext.createMediaStreamDestination();
+                analyser.connect(audioDest);
+                audioTracks = audioDest.stream.getAudioTracks();
+                console.log('[Capture] Web Audio audioDest tracks:', audioTracks.length);
+            }
+
+            const tracks = [
+                ...canvasStream.getVideoTracks(),
+                ...audioTracks
+            ];
+            mixedStream = new MediaStream(tracks);
         } catch(e) {
            console.warn("Could not merge audio stream, falling back to canvas only", e);
            mixedStream = canvasStream;
@@ -440,6 +468,7 @@
         if (isRecording && mediaRecorder?.state === 'recording') {
             try { activeSource?.stop(); } catch(e) {}
             activeSource = null;
+            if (captureAudioEl) { captureAudioEl.pause(); }
             mediaRecorder.stop();
         }
     };
@@ -473,8 +502,9 @@
                 throw new Error("MediaRecorder not initialized");
             }
 
-            // Start audio first, then recorder after brief warm-up
+            // Start audio + captureStream audio element at the same time
             activeSource.start(0);
+            if (captureAudioEl) captureAudioEl.play();
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     mediaRecorder.start(100); 
