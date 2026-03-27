@@ -128,10 +128,6 @@
     };
     setupCanvas();
 
-    // --- Init Web Audio ---
-    // ANDROID: skip createMediaElementSource — it breaks large MP3 playback on Android Chrome.
-    //          Audio plays natively; captureStream() handles recording.
-    // DESKTOP: full Web Audio chain with createMediaElementSource for music-reactive face.
     const initAudio = () => {
         if (isInitialized) return;
         try {
@@ -141,19 +137,6 @@
             analyser = audioContext.createAnalyser();
             analyser.fftSize = 512;
             analyser.smoothingTimeConstant = 0.85;
-
-            if (!isAndroid) {
-                // Desktop: crossorigin needed for createMediaElementSource with data: URIs
-                promoAudio.crossOrigin = 'anonymous';
-                const src = audioContext.createMediaElementSource(promoAudio);
-                src.connect(analyser);
-                analyser.connect(audioContext.destination);
-
-            } else {
-                // Android: audio plays directly through native decoder, no Web Audio routing
-                // Analyser is kept for silent heartbeat (not music-reactive on Android)
-                analyser.connect(audioContext.destination);
-            }
 
             // Heartbeat oscillator — keeps AudioContext alive on mobile
             const silentOsc = audioContext.createOscillator();
@@ -215,6 +198,24 @@
                 clearTimeout(fallbackTimeout);
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
+                
+                // --- Safe Visualizer Connection ---
+                try {
+                    if (isAndroid && typeof (promoAudio as any).captureStream === 'function') {
+                        // Android Mirror: mediaStreamSource DOES NOT mute the element
+                        const stream = (promoAudio as any).captureStream() as MediaStream;
+                        const streamSrc = audioContext.createMediaStreamSource(stream);
+                        streamSrc.connect(analyser);
+                        console.log('Android Visualizer Mirror: OK');
+                    } else if (!isAndroid) {
+                        // Desktop: standard MediaElementSource
+                        promoAudio.crossOrigin = 'anonymous';
+                        const elementSrc = audioContext.createMediaElementSource(promoAudio);
+                        elementSrc.connect(analyser);
+                        analyser.connect(audioContext.destination);
+                    }
+                } catch(e) { console.warn('Visualizer connection failed', e); }
+
                 if (statusText) {
                     statusText.textContent = `СЕМЯ ЗАГРУЖЕНО [${Math.round(promoAudio.duration)}с]`;
                     statusText.classList.add('text-cyber-accent');
@@ -275,10 +276,8 @@
         ctx.drawImage(gridCanvas, 0, 0);
         time += 0.015;
 
-        // Android: face is active (not dormant) when audio plays, but not music-reactive
-        // Desktop: music-reactive via analyser connected to MediaElementSource
         const isDormant = !hasLoadedFile || promoAudio.paused;
-        const hasAnalyserData = isInitialized && !isAndroid;
+        const hasAnalyserData = isInitialized;
         const bufferLength = hasAnalyserData ? analyser.frequencyBinCount : 0;
         const dataArray = new Uint8Array(bufferLength || 512);
         let bassSum = 0, vocalsSum = 0, bass = 0, vocals = 0;
