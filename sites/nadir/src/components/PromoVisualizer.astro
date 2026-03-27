@@ -71,9 +71,9 @@
         if (!audioUpload || !btnRecord || !canvas || !btnStop || !paletteContainer || !promoAudio) return;
 
         // --- State & Context ---
+        const isAndroid = /Android/i.test(navigator.userAgent);
         let audioContext: AudioContext;
         let analyser: AnalyserNode;
-        let audioElementSource: MediaElementAudioSourceNode | null = null;
         let mediaRecorder: MediaRecorder | null = null;
         let recordedChunks: Blob[] = [];
         let isInitialized = false;
@@ -125,24 +125,32 @@
     };
     setupCanvas();
 
-    // --- Init Web Audio (called once on first file load — file picker IS a user gesture) ---
+    // --- Init Web Audio ---
+    // ANDROID: skip createMediaElementSource — it breaks large MP3 playback on Android Chrome.
+    //          Audio plays natively; captureStream() handles recording.
+    // DESKTOP: full Web Audio chain with createMediaElementSource for music-reactive face.
     const initAudio = () => {
         if (isInitialized) return;
         try {
             const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-            // Don't force sampleRate — let Android pick its preferred rate to avoid decoder mismatches
             audioContext = new AudioContextClass();
 
             analyser = audioContext.createAnalyser();
             analyser.fftSize = 512;
             analyser.smoothingTimeConstant = 0.85;
 
-            // Connect audio ELEMENT to the analyser (once — changing src reuses the same node)
-            audioElementSource = audioContext.createMediaElementSource(promoAudio);
-            audioElementSource.connect(analyser);
-            analyser.connect(audioContext.destination);
+            if (!isAndroid) {
+                // Desktop: connect audio element through Web Audio for music-reactive face
+                const src = audioContext.createMediaElementSource(promoAudio);
+                src.connect(analyser);
+                analyser.connect(audioContext.destination);
+            } else {
+                // Android: audio plays directly through native decoder, no Web Audio routing
+                // Analyser is kept for silent heartbeat (not music-reactive on Android)
+                analyser.connect(audioContext.destination);
+            }
 
-            // Android Heartbeat: silent oscillator keeps AudioContext alive
+            // Heartbeat oscillator — keeps AudioContext alive on mobile
             const silentOsc = audioContext.createOscillator();
             const silentGain = audioContext.createGain();
             silentGain.gain.value = 0.0001;
@@ -158,9 +166,8 @@
     };
 
     // 1. Audio Upload Handler
-    // KEY: FileReader.readAsDataURL() produces "data:audio/mpeg;base64,..."
-    // The MIME type is embedded IN THE STRING — Android Chrome CANNOT miss it.
-    // This solves the blob: URL MIME ambiguity that broke MP3 decoding on Android.
+    // Android: blob URL (data URI was too large/slow for big MP3 files on mobile)
+    // Desktop: data URI for explicit MIME type compatibility
     audioUpload.addEventListener('change', (e) => {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
@@ -173,10 +180,8 @@
         // Init Web Audio on first file (user gesture unlocks AudioContext)
         initAudio();
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            // data URI: "data:audio/mpeg;base64,AAAA..." — MIME type is crystal clear
-            promoAudio.src = reader.result as string;
+        const loadAudio = (src: string) => {
+            promoAudio.src = src;
             promoAudio.oncanplaythrough = () => {
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
@@ -187,17 +192,24 @@
                 }
             };
             promoAudio.onerror = () => {
-                // Still allow attempt — some Android versions fire error but still play
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
-                if (statusText) statusText.textContent = 'ОШИБКА ЗАГРУЗКИ (попробуй всё равно)';
+                if (statusText) statusText.textContent = 'ОШИБКА (попробуй всё равно)';
             };
             promoAudio.load();
         };
-        reader.onerror = () => {
-            if (statusText) statusText.textContent = 'ОШИБКА ЧТЕНИЯ ФАЙЛА';
-        };
-        reader.readAsDataURL(file);
+
+        if (isAndroid) {
+            // Android: use blob URL directly — no createMediaElementSource, native decoder handles it
+            const url = URL.createObjectURL(file);
+            loadAudio(url);
+        } else {
+            // Desktop: FileReader for explicit MIME type in data URI
+            const reader = new FileReader();
+            reader.onload = () => loadAudio(reader.result as string);
+            reader.onerror = () => { if (statusText) statusText.textContent = 'ОШИБКА ЧТЕНИЯ'; };
+            reader.readAsDataURL(file);
+        }
     });
 
     // 3. The Visualizer Loop
@@ -226,22 +238,26 @@
         ctx.drawImage(gridCanvas, 0, 0);
         time += 0.015;
 
-        const bufferLength = isInitialized ? analyser.frequencyBinCount : 0;
+        // Android: face is active (not dormant) when audio plays, but not music-reactive
+        // Desktop: music-reactive via analyser connected to MediaElementSource
+        const isDormant = !hasLoadedFile || promoAudio.paused;
+        const hasAnalyserData = isInitialized && !isAndroid;
+        const bufferLength = hasAnalyserData ? analyser.frequencyBinCount : 0;
         const dataArray = new Uint8Array(bufferLength || 512);
-
         let bassSum = 0, vocalsSum = 0, bass = 0, vocals = 0;
 
-        const isDormant = !isInitialized || !hasLoadedFile || promoAudio.paused;
-
-        if (!isDormant) {
+        if (!isDormant && hasAnalyserData) {
             analyser.getByteFrequencyData(dataArray);
             for(let i = 0; i < 8; i++) bassSum += dataArray[i];
             for(let i = 5; i < 45; i++) vocalsSum += dataArray[i];
             bass = bassSum / 8;
             vocals = vocalsSum / 40;
+        } else if (!isDormant && isAndroid) {
+            // Android: simulate mild reactivity from time-based pulse
+            bass = 20 + Math.sin(time * 3) * 15;
+            vocals = 15 + Math.sin(time * 5) * 10;
         }
 
-        ctx.save();
         const baseColor = `rgba(${selectedColor},`; 
         
         if (isRecording || isDormant) {
