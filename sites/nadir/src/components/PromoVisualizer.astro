@@ -136,10 +136,14 @@
                 // Unload previous if exists
                 if (howl) howl.unload();
 
+                // Detect format from file type
+                const mimeType = file.type || 'audio/mpeg';
+                const extension = file.name.split('.').pop()?.toLowerCase() || 'mp3';
+                
                 howl = new Howl({
                     src: [url],
-                    format: ['mp3'], // Hint for blob URLs
-                    html5: false, // Use Web Audio for visualization
+                    format: [extension, 'mp3', 'wav', 'aac'], // More permissive
+                    html5: /Android/i.test(navigator.userAgent), // Use HTML5 for Android for better compatibility
                     onload: () => {
                         btnRecord.disabled = false;
                         if(statusText) statusText.textContent = "СЕМЯ ЗАГРУЖЕНО";
@@ -154,9 +158,15 @@
                     },
                     onplayerror: (id, err) => {
                         console.error("Howl Play Error:", err);
-                        const msg = "БРАУЗЕР БЛОКИРУЕТ ЗВУК";
-                        if(statusText) statusText.textContent = msg;
-                        alert(msg);
+                        // Fallback attempt: sometimes html5: true works when WebAudio fails
+                        howl?.unload();
+                        howl = new Howl({
+                            src: [url],
+                            format: ['mp3'],
+                            html5: true,
+                            onplayerror: () => alert("БРАУЗЕР БЛОКИРУЕТ ЗВУК")
+                        });
+                        howl.play();
                     },
                     onend: () => {
                         if (isRecording) stopRecording();
