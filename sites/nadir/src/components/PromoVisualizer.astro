@@ -49,7 +49,8 @@
   </div>
 
   <!-- Audio element: invisible but NOT display:none (critical for some mobile engines) -->
-  <audio id="promo-audio" controls class="opacity-0 pointer-events-none absolute -z-10"></audio>
+  <audio id="promo-audio" controls preload="auto" class="opacity-0 pointer-events-none absolute -z-10"></audio>
+
 
 
 </div>
@@ -191,14 +192,27 @@
             // Essential: clear src and sources to avoid ambiguity
             promoAudio.removeAttribute('src');
             promoAudio.innerHTML = '';
+            
+            // Try explicit <source> first (like NadirVoice)
             const source = document.createElement('source');
             source.src = src;
             source.type = type;
             promoAudio.appendChild(source);
             
+            // Fallback: set direct src AFTER a small delay if loading fails
+            // Some mobile browsers prefer direct src for blobs
+            const fallbackTimeout = setTimeout(() => {
+                if (promoAudio.networkState === 3 || promoAudio.networkState === 0) { // EMPTY or NO_SOURCE
+                    console.log('Switching to direct src fallback...');
+                    promoAudio.src = src;
+                    promoAudio.load();
+                }
+            }, 300);
+
             // Detailed status chain
             promoAudio.onloadedmetadata = () => { if (statusText) statusText.textContent = 'МЕТАДАННЫЕ [OK]...'; };
             promoAudio.oncanplay = () => {
+                clearTimeout(fallbackTimeout);
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
                 if (statusText) {
@@ -208,6 +222,7 @@
                 }
             };
             promoAudio.onerror = (err) => {
+                clearTimeout(fallbackTimeout);
                 console.error('Audio load error:', err);
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
@@ -216,10 +231,19 @@
             promoAudio.load();
         };
 
-        // Use blob URL for everything (closer to NadirVoice's server URL behavior)
+        // Aggressive MIME sniffing
+        const fileName = file.name.toLowerCase();
+        let mimeType = file.type || 'audio/mpeg';
+        if (fileName.endsWith('.mp3')) mimeType = 'audio/mpeg';
+        if (fileName.endsWith('.wav')) mimeType = 'audio/wav';
+        if (fileName.endsWith('.m4a')) mimeType = 'audio/mp4';
+        if (fileName.endsWith('.ogg')) mimeType = 'audio/ogg';
+
+        // Use blob URL for everything
         const url = URL.createObjectURL(file);
-        loadAudio(url, file.type || 'audio/mpeg');
+        loadAudio(url, mimeType);
     });
+
 
 
 
