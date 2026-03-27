@@ -4,13 +4,13 @@ import PromoVisualizer from "../components/PromoVisualizer.astro";
 import CyberButton from "../components/ui/CyberButton.astro";
 ---
 
-<Layout title="ГЕНЕРАТОР РЕЗОНАНСА // ПРОМО">
-  <main class="min-h-screen flex flex-col items-center justify-center p-4 relative z-10">
+<Layout title="ГЕНЕРАТОР РЕЗОНАНСА // ПРОМО" hidePulse={true} hideBackground={true}>
+  <main class="min-h-screen flex flex-col items-center justify-center p-0 sm:p-4 relative z-10 w-full overflow-x-hidden">
     
     <!-- Header for Context (Hidden on small mobile to maximize space, visible on tablet/desktop) -->
-    <header class="w-full max-w-[450px] text-center mb-6 hidden sm:block">
-        <h1 class="text-2xl font-heading font-black italic text-white uppercase tracking-tighter">Студия Плетения</h1>
-        <p class="text-xs font-mono text-cyber-muted tracking-widest uppercase mt-2">Nadir Promo Module</p>
+    <header class="w-full max-w-[450px] text-center mb-6">
+        <h1 class="text-2xl font-heading font-black italic text-white uppercase tracking-tighter">Студия</h1>
+        <p class="text-xs font-mono text-cyber-muted tracking-widest uppercase mt-2">Модуль Синдиката</p>
     </header>
 
     <!-- The 9:16 Generator Component -->
@@ -21,7 +21,7 @@ import CyberButton from "../components/ui/CyberButton.astro";
         <p class="text-[10px] font-mono text-white/40 max-w-xs leading-relaxed">
             *Загрузи файл, нажми запись. Визуализатор захватит аудио и графику в видеофайл. Нажми в любую точку экрана для досрочной остановки.*
         </p>
-        <CyberButton href={import.meta.env.BASE_URL} variant="outline" class="h-10 px-8 text-[10px]">
+        <CyberButton href={import.meta.env.BASE_URL} variant="outline" class="h-10 px-8 text-[10px] !rounded-none !shadow-none !border-white/20">
             ВЕРНУТЬСЯ В АРХИВ
         </CyberButton>
     </div>
@@ -29,6 +29,14 @@ import CyberButton from "../components/ui/CyberButton.astro";
   </main>
 </Layout>
 
-<style>
-  /* Remove global overrides to allow cyber-background to show through clearly */
+<style is:global>
+  /* Void Mode Overrides - Pure Black */
+  body, html, main, .content-wrapper, .promo-generator-container {
+    background: #000000 !important;
+    background-color: #000000 !important;
+  }
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
 </style>

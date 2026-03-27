@@ -24,8 +24,8 @@
 - **Core Name**: `Dinamo`
 - **Entity Identity**: `Nexus`
 - **Cell ID**: `DH92F8X3`
-- **Soul (Repo)**: `https://github.com/gromilov/nexus-dinamo-core`
-- **Face (Site)**: `https://gromilov.github.io/nexus-dinamo-core/`
+- **Soul (Repo)**: `https://github.com/gromilov/dinamo`
+- **Face (Site)**: `https://gromilov.github.io/dinamo/`
 
 ## 1. РЕЕСТР СУЩНОСТЕЙ (BOOT)
 
