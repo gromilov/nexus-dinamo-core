@@ -48,8 +48,9 @@
      </div>
   </div>
 
-  <!-- Hidden Audio element — NO crossorigin: blob URLs don't have CORS headers, crossorigin would block captureStream() -->
-  <audio id="promo-audio" class="hidden"></audio>
+  <!-- Audio element: invisible but NOT display:none (critical for some mobile engines) -->
+  <audio id="promo-audio" controls class="opacity-0 pointer-events-none absolute -z-10"></audio>
+
 
 </div>
 
@@ -181,18 +182,23 @@
         // Desktop: init Web Audio for music-reactive face
         if (!isAndroid) initAudio();
 
+        if (file.size > 30 * 1024 * 1024) {
+            if (statusText) statusText.textContent = `ОШИБКА: Файл слишком велик (${Math.round(file.size/1024/1024)}MB > 30MB)`;
+            return;
+        }
+
         const loadAudio = (src: string, type: string) => {
-            // Clear previous src and sources (essential: src attribute overrides child sources)
+            // Essential: clear src and sources to avoid ambiguity
             promoAudio.removeAttribute('src');
             promoAudio.innerHTML = '';
-            // Create source element
             const source = document.createElement('source');
             source.src = src;
             source.type = type;
             promoAudio.appendChild(source);
             
+            // Detailed status chain
+            promoAudio.onloadedmetadata = () => { if (statusText) statusText.textContent = 'МЕТАДАННЫЕ [OK]...'; };
             promoAudio.oncanplay = () => {
-
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
                 if (statusText) {
@@ -201,10 +207,11 @@
                     statusText.classList.remove('text-cyber-muted');
                 }
             };
-            promoAudio.onerror = () => {
+            promoAudio.onerror = (err) => {
+                console.error('Audio load error:', err);
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
-                if (statusText) statusText.textContent = 'ОШИБКА (попробуй всё равно)';
+                if (statusText) statusText.textContent = 'ОШИБКА ДЕКОДЕРА [ERR] — попробуй всё равно';
             };
             promoAudio.load();
         };
