@@ -360,7 +360,7 @@
         let mixedStream;
         try {
            const audioDest = audioContext.createMediaStreamDestination();
-           source.connect(audioDest); 
+           analyser.connect(audioDest); 
            
            const tracks = [
                ...canvasStream.getVideoTracks(),
