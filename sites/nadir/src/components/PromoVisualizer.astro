@@ -148,6 +148,14 @@
             source = audioContext.createMediaElementSource(audio);
             source.connect(analyser);
             analyser.connect(audioContext.destination);
+
+            // Android Heartbeat: Silent Oscillator to keep AudioContext alive
+            const silentOsc = audioContext.createOscillator();
+            const silentGain = audioContext.createGain();
+            silentGain.gain.value = 0.0001; // nearly silent
+            silentOsc.connect(silentGain);
+            silentGain.connect(audioContext.destination);
+            silentOsc.start();
             
             isInitialized = true;
         }
@@ -225,9 +233,10 @@
         }
         
         // --- DRAW FACE ---
-        ctx.translate(cw / 2, ch * 0.45); 
+        ctx.translate(cw / 2, ch * 0.42); 
         
-        const baseScale = (cw * 0.8) / 120; // fill 80% width roughly
+        const isMobile = cw < 800;
+        const baseScale = (cw * (isMobile ? 0.62 : 0.8)) / 120; // 0.62 for mobile to avoid clipping
         const scale = baseScale + (bass/255) * 0.5; 
         ctx.scale(scale, scale);
         
@@ -406,26 +415,41 @@
     btnRecord.addEventListener('click', async () => {
         if (!audio.src) return;
         
-        initAudio(); 
-        
-        // Hide Main UI
-        if(uiLayer) uiLayer.style.opacity = '0';
-        if(uiLayer) uiLayer.style.pointerEvents = 'none';
+        try {
+            initAudio(); 
+            
+            // Hide Main UI
+            if(uiLayer) uiLayer.style.opacity = '0';
+            if(uiLayer) uiLayer.style.pointerEvents = 'none';
 
-        // Show Dedicated Stop Button
-        if(stopLayer) {
-            stopLayer.classList.remove('hidden');
-            stopLayer.style.pointerEvents = 'auto';
-            setTimeout(()=> stopLayer.style.opacity = '1', 100);
+            // Show Dedicated Stop Button
+            if(stopLayer) {
+                stopLayer.classList.remove('hidden');
+                stopLayer.style.pointerEvents = 'auto';
+                setTimeout(()=> stopLayer.style.opacity = '1', 100);
+            }
+
+            setupRecording();
+            
+            audio.currentTime = 0;
+            // Android requires explicit verification of AudioContext state
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+            
+            await audio.play();
+            
+            mediaRecorder?.start(100); 
+            isRecording = true;
+            if(statusText) statusText.textContent = "ИДЕТ ЗАПИСЬ...";
+        } catch (error) {
+            console.error("Recording Start Error:", error);
+            if(statusText) statusText.textContent = "ОШИБКА: НЕТ ДОСТУПА К ЗВУКУ";
+            if(uiLayer) {
+                uiLayer.style.opacity = '1';
+                uiLayer.style.pointerEvents = 'auto';
+            }
         }
-
-        setupRecording();
-        
-        audio.currentTime = 0;
-        await audio.play();
-        
-        mediaRecorder?.start(100); 
-        isRecording = true;
     });
 
     // Auto stop when audio ends
