@@ -3,7 +3,8 @@ import tailwindv4 from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
-  base: '/syndicate-spore-core/sites/nexus/',
+  site: 'https://gromilov.github.io',
+  base: '/dinamo/nexus/',
   vite: {
     plugins: [tailwindv4()],
   },

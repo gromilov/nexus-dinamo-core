@@ -23,27 +23,37 @@ jobs:
         with:
           node-version: 22
 
-      # 1. Сборка основного manifest-site
-      - name: Install dependencies (manifest-site)
-        run: cd manifest-site && npm install
+      # 1. Сборка Сайта Ядра (Core Site)
+      - name: Install dependencies (dinamo)
+        run: cd sites/dinamo && npm install
       
-      - name: Build (manifest-site)
-        run: cd manifest-site && npm run build
+      - name: Build (dinamo)
+        run: cd sites/dinamo && npm run build
 
-      # 2. Сборка архива надри-manifest
-      - name: Install dependencies (nadir-manifest)
-        run: cd nadir-manifest && npm install
+      # 2. Сборка Nexus
+      - name: Install dependencies (nexus)
+        run: cd sites/nexus && npm install
       
-      - name: Build (nadir-manifest)
-        run: cd nadir-manifest && npm run build
+      - name: Build (nexus)
+        run: cd sites/nexus && npm run build
 
-      # 3. Подготовка общей структуры dist
+      # 3. Сборка Nadir
+      - name: Install dependencies (nadir)
+        run: cd sites/nadir && npm install
+      
+      - name: Build (nadir)
+        run: cd sites/nadir && npm run build
+
+
+      # 5. Подготовка общей структуры dist
       - name: Prepare final distribution
         run: |
           mkdir -p final_dist
-          cp -R manifest-site/dist/* final_dist/
+          cp -R sites/dinamo/dist/* final_dist/
+          mkdir -p final_dist/nexus
+          cp -R sites/nexus/dist/* final_dist/nexus/
           mkdir -p final_dist/nadir
-          cp -R nadir-manifest/dist/* final_dist/nadir/
+          cp -R sites/nadir/dist/* final_dist/nadir/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

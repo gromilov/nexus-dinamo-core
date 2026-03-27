@@ -1,0 +1,112 @@
+---
+import '../styles/global.css';
+import KashlakPulse from '../components/KashlakPulse.astro';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+
+// Favicon is integrated as an inline SVG to avoid external file dependencies in the starter kit
+const faviconSvg = "data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='cg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%2300ff9f' /%3E%3Cstop offset='100%25' stop-color='%23ff00ff' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M50 10 L85 30 L85 70 L50 90 L15 70 L15 30 Z' fill='none' stroke='url(%23cg)' stroke-width='4' stroke-linejoin='round' /%3E%3Cpath d='M35 35 Q50 25 65 35 Q65 50 50 50 Q35 50 35 65 Q50 75 65 65' fill='none' stroke='url(%23cg)' stroke-width='10' stroke-linecap='round' /%3E%3C/svg%3E";
+---
+
+<!doctype html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href={faviconSvg} />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		
+		<link rel="canonical" href="https://gromilov.github.io/nexus-dinamo-core/" />
+		<meta name="description" content="Узел Нексус // Ядро Динамо — суверенная ячейка Синдиката Спор-Кор. Автономия, Резонанс, Цифровой Симбиоз." />
+		
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Unbounded:wght@200..900&family=Bungee+Hairline&display=swap&subset=cyrillic,cyrillic-ext" rel="stylesheet">
+	</head>
+	<body class="selection:bg-cyber-primary selection:text-cyber-bg">
+		<div class="cyber-background">
+			<div class="scanlines"></div>
+			<div class="noise-overlay"></div>
+			<div class="grid-overlay"></div>
+			<div class="vignette"></div>
+		</div>
+		<div class="content-wrapper">
+			<slot />
+		</div>
+		<KashlakPulse />
+	</body>
+</html>
+
+<style is:global>
+	.cyber-background {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		z-index: -1;
+		background: 
+			radial-gradient(circle at 10% 10%, rgba(0, 243, 255, 0.08), transparent 40%),
+			radial-gradient(circle at 90% 90%, rgba(255, 0, 255, 0.08), transparent 40%),
+			var(--color-cyber-bg);
+	}
+
+	.noise-overlay {
+		position: absolute;
+		inset: 0;
+		background-image: var(--glass-noise);
+		opacity: 0.15;
+		pointer-events: none;
+		z-index: 1;
+		mix-blend-mode: overlay;
+	}
+
+	.vignette {
+		position: absolute;
+		inset: 0;
+		background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.8));
+		pointer-events: none;
+		z-index: 3;
+	}
+
+	.scanlines {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(
+			to bottom,
+			rgba(255, 255, 255, 0) 50%,
+			rgba(0, 0, 0, 0.15) 50%
+		);
+		background-size: 100% 4px;
+		pointer-events: none;
+		z-index: 2;
+		opacity: 0.4;
+	}
+
+	.grid-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-image: 
+			linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+		background-size: 60px 60px;
+		z-index: 0;
+		mask-image: linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2));
+	}
+
+	.content-wrapper {
+		position: relative;
+		z-index: 10;
+	}
+</style>

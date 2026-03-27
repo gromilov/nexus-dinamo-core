@@ -1,54 +1,124 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cyber-bg: #030308;
-  --color-cyber-bg-light: #0a0a15;
-  --color-cyber-primary: #00ff9f;
-  --color-cyber-secondary: #ff00ff;
-  --color-cyber-accent: #0088ff;
-  --color-cyber-muted: #4b5563;
-  --color-cyber-text: #e2e2e2;
+  --color-cyber-bg: #060709; /* Deeper Obsidian Ink */
+  --color-cyber-bg-light: #0d0f12; /* Heavy Metal Depth */
+  --color-cyber-primary: #e6e1d6; /* Warm Bone White */
+  --color-cyber-secondary: #c5a059; /* Imperial Gold */
+  --color-cyber-accent: #c5a059; /* Status -> Imperial Gold */
+  --color-cyber-muted: #3a3a3a;
+  --color-cyber-text: #e6e1d6;
 
   --font-mono: "JetBrains Mono", monospace;
   --font-heading: "Unbounded", sans-serif;
+  --font-display: "Bungee Hairline", cursive;
 
-  --glow-primary: 0 0 10px rgba(0, 255, 159, 0.3);
-  --glow-secondary: 0 0 10px rgba(255, 0, 255, 0.3);
+  --glow-primary: 0 0 15px rgba(230, 225, 214, 0.4); /* Bone Glow */
+  --glow-secondary: 0 0 15px rgba(197, 160, 89, 0.4); /* Gold Glow */
+  --glow-accent: 0 0 15px rgba(197, 160, 89, 0.2);
 
-  --glass-bg: rgba(11, 11, 26, 0.85);
-  --glass-border: rgba(0, 255, 159, 0.1);
+  --glass-bg: rgba(6, 7, 9, 0.8);
+  --glass-border: rgba(197, 160, 89, 0.3);
+  --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
 @layer base {
   * {
     box-sizing: border-box;
+    cursor: crosshair;
+  }
+
+  html {
+    overflow-x: hidden;
+    width: 100vw;
+    background: var(--color-cyber-bg);
   }
 
   body {
-    @apply bg-cyber-bg text-cyber-text font-mono selection:bg-cyber-primary selection:text-black;
+    @apply bg-cyber-bg text-cyber-text font-mono selection:bg-cyber-secondary selection:text-black;
     min-height: 100vh;
     margin: 0;
     overflow-x: hidden;
+    width: 100vw;
+    position: relative;
+    /* Imperial Dot Matrix & CRT Effects */
+    background-image: 
+      radial-gradient(circle at 1px 1px, rgba(197, 160, 89, 0.06) 1px, transparent 0),
+      linear-gradient(rgba(18, 16, 16, 0.1) 50%, rgba(0, 0, 0, 0.2) 50%), 
+      linear-gradient(90deg, rgba(230, 225, 214, 0.005), rgba(197, 160, 89, 0.005), rgba(0, 0, 0, 0.05));
+    background-size: 40px 40px, 100% 6px, 4px 100%;
   }
 }
 
 @layer components {
-  .glass {
-    background-color: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.6);
+  .terminal-frame {
+    position: relative;
+    border: 4px double rgba(197, 160, 89, 0.3);
+    background: rgba(13, 15, 18, 0.9);
+    box-shadow: 
+      inset 0 0 30px rgba(0,0,0,0.8),
+      0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    padding: 2rem;
   }
 
-  .glow-text {
-    text-shadow: var(--glow-primary);
+  /* Syndicate Heavy Vignette - Fixed viewport framing */
+  .syndicate-vignette-heavy {
+    position: fixed !important;
+    inset: 0 !important;
+    pointer-events: none !important;
+    z-index: 9999 !important;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.5) 100%) !important;
+    box-shadow: none !important; /* Total removal of legacy cyan ghosts */
+    mix-blend-mode: multiply !important;
+  }
+
+  .img-monochrome {
+    filter: grayscale(1) sepia(60%) brightness(0.9) contrast(1.1);
+    @apply opacity-80 group-hover:opacity-100 transition-all duration-700;
   }
 
   .cyber-button {
-    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+    @apply border-2 border-cyber-secondary px-8 py-4 bg-transparent hover:bg-cyber-secondary hover:text-black transition-all duration-500 uppercase font-black text-[11px] tracking-[0.3em] shadow-lg;
+    box-shadow: 4px 4px 0 rgba(197, 160, 89, 0.2);
   }
 
-  .optimize-layers {
-    will-change: transform, opacity;
-    transform: translateZ(0);
+  .glow-text {
+    text-shadow: 0 0 10px rgba(197, 160, 89, 0.4);
+  }
+
+  /* Ручная типографика для постов */
+  .cyber-prose {
+    line-height: 1.8;
+    color: rgba(230, 225, 214, 0.85);
+  }
+
+  .cyber-prose h1 { @apply text-4xl font-black text-cyber-primary italic mt-12 mb-6 uppercase tracking-tighter; }
+  .cyber-prose h2 { @apply text-2xl font-black text-cyber-primary italic mt-10 mb-4 uppercase border-l-4 border-cyber-secondary pl-4; }
+  .cyber-prose h3 { @apply text-xl font-black text-cyber-primary italic mt-8 mb-3 uppercase; }
+  
+  .cyber-prose p { @apply mb-6; }
+  
+  .cyber-prose blockquote {
+    @apply border-l-4 border-cyber-secondary bg-cyber-secondary/5 p-6 my-8 rounded-r-2xl italic text-cyber-primary;
+  }
+
+  .cyber-prose ul { @apply list-disc list-inside mb-6 space-y-2; }
+  .cyber-prose ol { @apply list-decimal list-inside mb-6 space-y-2; }
+  
+  .cyber-prose li::marker { @apply text-cyber-primary font-black; }
+
+  .cyber-prose pre {
+    @apply bg-cyber-bg-light/50 border border-white/10 p-6 rounded-2xl my-8 overflow-x-auto;
+  }
+
+  .cyber-prose code {
+    @apply bg-cyber-primary/10 text-cyber-primary px-1.5 py-0.5 rounded font-bold;
+  }
+
+  .cyber-prose strong { @apply text-cyber-secondary font-black; }
+  
+  .cyber-prose a {
+    @apply text-cyber-primary underline decoration-2 underline-offset-4 hover:text-cyber-secondary transition-colors font-black;
   }
 }

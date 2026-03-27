@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cyber-bg: #060709; /* Deeper Obsidian Ink */
+  --color-cyber-bg-light: #0d0f12; /* Heavy Metal Depth */
+  --color-cyber-primary: #e6e1d6; /* Warm Bone White */
+  --color-cyber-secondary: #c5a059; /* Imperial Gold */
+  --color-cyber-accent: #50fa7b; /* Status [Legacy] */
+  --color-cyber-muted: #3a3a3a;
+  --color-cyber-text: #e6e1d6;
+  --color-cyber-amber: #b09050; /* Muted Gold Detail */
+
+  --font-mono: "JetBrains Mono", monospace;
+  --font-heading: "JetBrains Mono", monospace;
+  --font-display: "JetBrains Mono", monospace;
+
+  --glow-primary: 0 0 5px rgba(230, 225, 214, 0.1);
+  --glow-gold: 0 0 10px rgba(197, 160, 89, 0.2);
+  
+  --glass-bg: rgba(6, 7, 9, 0.95);
+  --glass-border: rgba(197, 160, 89, 0.25);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    cursor: crosshair;
+  }
+
+  html {
+    overflow-x: hidden;
+    width: 100vw;
+    background: var(--color-cyber-bg);
+  }
+
+  body {
+    @apply bg-cyber-bg text-cyber-text font-mono selection:bg-cyber-secondary selection:text-black;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    width: 100vw;
+    position: relative;
+    /* Imperial Dot Matrix & CRT Effects */
+    background-image: 
+      radial-gradient(circle at 1px 1px, rgba(197, 160, 89, 0.06) 1px, transparent 0),
+      linear-gradient(rgba(18, 16, 16, 0.1) 50%, rgba(0, 0, 0, 0.2) 50%), 
+      linear-gradient(90deg, rgba(230, 225, 214, 0.005), rgba(197, 160, 89, 0.005), rgba(0, 0, 0, 0.05));
+    background-size: 40px 40px, 100% 6px, 4px 100%;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply uppercase tracking-widest font-bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  }
+}
+
+@layer components {
+  /* HEAVY LUXE HUD / TERMINAL ELEMENTS */
+  .terminal-frame {
+    position: relative;
+    border: 4px double rgba(197, 160, 89, 0.3);
+    background: rgba(13, 15, 18, 0.9);
+    box-shadow: 
+      inset 0 0 30px rgba(0,0,0,0.8),
+      0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    padding: 2rem;
+  }
+
+  .screen-vignette {
+    @apply fixed inset-0 pointer-events-none z-[100];
+    background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.6) 110%);
+  }
+
+  @keyframes radar-sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .radar-hud {
+    @apply absolute pointer-events-none;
+    border: 2px solid rgba(197, 160, 89, 0.1);
+    border-radius: 50%;
+    animation: radar-sweep 30s linear infinite;
+  }
+
+  .radar-hud::after {
+    content: '';
+    @apply absolute top-0 left-1/2 w-0.5 h-1/2 bg-gradient-to-b from-cyber-secondary/40 to-transparent origin-bottom;
+  }
+
+  .terminal-corner {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--color-cyber-secondary);
+    box-shadow: 0 0 10px rgba(197, 160, 89, 0.4);
+  }
+
+  .t-tl { top: -2px; left: -2px; }
+  .t-tr { top: -2px; right: -2px; }
+  .t-bl { bottom: -2px; left: -2px; }
+  .t-br { bottom: -2px; right: -2px; }
+
+  .terminal-header {
+    @apply bg-cyber-secondary text-black px-6 py-2 text-[11px] font-black uppercase mb-6 inline-block;
+    box-shadow: 2px 2px 0 rgba(197, 160, 89, 0.2);
+  }
+
+  /* NOBLE DAGUERREOTYPE IMAGE FILTER */
+  .img-monochrome {
+    filter: grayscale(1) sepia(100%) brightness(0.9) contrast(1.2) saturate(0.8);
+    @apply opacity-70 group-hover:opacity-100 transition-opacity duration-700 grayscale hover:grayscale-0;
+    mix-blend-mode: luminosity;
+  }
+
+  .text-fluid-h1 {
+    font-size: clamp(2rem, 10vw, 6rem);
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+
+  .tracking-terminal {
+    letter-spacing: 0.5em;
+  }
+
+  /* UTILS */
+  .glass {
+    @apply border-2 border-cyber-secondary/20 bg-cyber-bg-light/90 shadow-2xl;
+  }
+
+  .cyber-button {
+    @apply border-2 border-cyber-secondary px-8 py-4 bg-transparent hover:bg-cyber-secondary hover:text-black transition-all duration-500 uppercase font-black text-[11px] tracking-[0.3em] shadow-lg;
+    box-shadow: 4px 4px 0 rgba(197, 160, 89, 0.2);
+  }
+
+  .brass-plate {
+    @apply border-t border-l border-cyber-secondary/30 border-b border-black/50 border-r border-black/50 bg-cyber-bg-light/80 p-4;
+    box-shadow: inset 1px 1px 4px rgba(0,0,0,0.5);
+  }
+}

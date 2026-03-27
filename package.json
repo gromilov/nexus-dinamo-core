@@ -1,7 +1,7 @@
 {
-  "name": "dinamo",
+  "name": "nexus",
   "version": "1.0.0",
-  "description": "![ЯЧЕЙКА_ДИНАМО](.core/avatar.png)",
+  "description": "![NEXUS_ENTITY](.core/avatar.png)",
   "main": "index.js",
   "scripts": {
     "start": "node .core/scripts/bridge.js",

@@ -6,19 +6,22 @@ interface Props {
   [key: string]: any;
 }
 
-const { variant = 'primary', type = 'button', class: className, ...rest } = Astro.props;
+const { variant = 'primary', type = 'button', class: className, href, ...rest } = Astro.props;
+
+const Element = href ? 'a' : 'button';
 
 const variants = {
-  primary: "bg-[#00ff9f] text-[#030308] hover:bg-[#ff00ff] hover:text-white shadow-[0_10px_20px_rgba(0,255,159,0.1)]",
-  secondary: "bg-[#ff00ff] text-white hover:bg-[#00ff9f] hover:text-[#030308] shadow-[0_10px_20px_rgba(255,0,255,0.1)]",
-  outline: "bg-transparent border-2 border-[#ff00ff] text-[#ff00ff] hover:bg-[#ff00ff] hover:text-white shadow-[0_0_15px_rgba(255,0,255,0.1)]"
+  primary: "bg-cyber-secondary text-black hover:bg-cyber-primary shadow-[4px_4px_0_rgba(197,160,89,0.3)]",
+  secondary: "bg-cyber-primary text-black hover:bg-cyber-secondary shadow-[4px_4px_0_rgba(230,225,214,0.3)]",
+  outline: "bg-transparent border-2 border-cyber-secondary text-cyber-secondary hover:bg-cyber-secondary hover:text-black shadow-[2px_2px_0_rgba(197,160,89,0.1)]"
 };
 ---
 
-<button 
-  type={type} 
+<Element 
+  type={href ? undefined : type} 
+  href={href}
   class:list={[
-    "py-3 px-6 rounded-xl transition-all uppercase tracking-[0.2em] text-[10px] font-black active:scale-[0.98] cursor-pointer relative overflow-hidden group/btn flex items-center justify-center gap-2",
+    "py-3 px-6 rounded-none transition-all uppercase tracking-[0.3em] text-[10px] font-black active:scale-[0.98] cursor-pointer relative overflow-hidden group/btn flex items-center justify-center gap-2 no-underline text-center transform border-2 border-black/40",
     variants[variant],
     className
   ]}
@@ -28,7 +31,7 @@ const variants = {
     <slot />
   </span>
   <div class="absolute top-0 -left-full w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover/btn:animate-[shimmer_1.5s_infinite]"></div>
-</button>
+</Element>
 
 <style>
   @keyframes shimmer {

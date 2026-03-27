@@ -1,0 +1,90 @@
+---
+// ResonanceTerminal.astro
+// Компонент для отображения последних событий из _SYNDICATE_EVENT.log
+// Версия v3.9: Синхронизация с протоколом «Глубокий Космос»
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+const LOG_FILE = path.join(process.cwd(), '../_SYNDICATE_EVENT.log');
+let logs = [];
+
+try {
+  if (fs.existsSync(LOG_FILE)) {
+    const content = fs.readFileSync(LOG_FILE, 'utf8');
+    logs = content.trim().split('\n').reverse().slice(0, 10);
+  } else {
+    logs = ["[СИСТЕМА] // Ожидание первого импульса..."];
+  }
+} catch (e) {
+  logs = [`[ERROR] // Ошибка чтения Ткани: ${e.message}`];
+}
+
+const colorizeEntry = (entry: string) => {
+  if (entry.includes('ОШИБКА') || entry.includes('ERROR')) return 'text-cyber-amber font-bold animate-pulse';
+  if (entry.includes('ДЕЙСТВИЕ') || entry.includes('ACTION')) return 'text-cyber-primary font-bold brightness-125';
+  if (entry.includes('ИМПУЛЬС') || entry.includes('SYNC')) return 'text-cyber-primary';
+  return 'text-cyber-primary/60';
+};
+
+const getPrefix = (entry: string) => {
+  if (entry.includes('ОШИБКА')) return '[ERR]';
+  if (entry.includes('ДЕЙСТВИЕ')) return '[ACT]';
+  return '[LOG]';
+};
+---
+
+<div class="terminal-frame !p-0 h-full flex flex-col bg-black/40 backdrop-blur-md">
+  <!-- Terminal Corners for visual consistency -->
+  <div class="terminal-corner t-tl"></div>
+  <div class="terminal-corner t-tr !bg-cyber-amber"></div>
+  <div class="terminal-corner t-bl !bg-cyber-amber"></div>
+  <div class="terminal-corner t-br"></div>
+
+  <!-- Terminal Header -->
+  <div class="flex justify-between items-center px-4 py-3 border-b border-cyber-primary/20 bg-cyber-primary/5">
+    <div class="flex items-center gap-3">
+       <div class="w-2 h-2 bg-cyber-amber animate-pulse"></div>
+       <span class="text-[10px] font-bold uppercase tracking-widest text-cyber-primary">ЖИВОЙ_ЛОГ_РЕЗОНАНСА [TRC_09]</span>
+    </div>
+    <div class="flex gap-1.5 opacity-50">
+      <div class="w-2 h-2 rounded-full border border-cyber-primary"></div>
+      <div class="w-2 h-2 rounded-full border border-cyber-primary"></div>
+      <div class="w-3 h-2 bg-cyber-primary/20"></div>
+    </div>
+  </div>
+
+  <!-- Terminal Body -->
+  <div class="flex-1 p-4 font-mono text-[10px] leading-relaxed overflow-y-auto custom-scrollbar bg-cyber-bg-light/20">
+    <div class="space-y-1">
+      {logs.map((log) => (
+        <div class="flex gap-3 group border-b border-white/5 pb-1">
+          <span class="text-cyber-amber opacity-40 shrink-0 font-bold">{getPrefix(log)} ></span>
+          <span class={colorizeEntry(log)}>{log}</span>
+        </div>
+      ))}
+      <div class="flex items-center gap-2 mt-4 opacity-40 italic">
+        <span>[СИСТЕМА] Ожидание новых данных...</span>
+        <div class="w-1.5 h-3 bg-cyber-primary animate-pulse"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal Footer (Local Telemetry) -->
+  <div class="px-4 py-2 bg-cyber-primary/5 border-t border-cyber-primary/10 flex justify-between text-[8px] opacity-40 uppercase font-bold tracking-tighter">
+     <span>BUFFER_STATE: STABLE</span>
+     <span>TRC_ID: {Math.random().toString(16).slice(2, 10).toUpperCase()}</span>
+  </div>
+</div>
+
+<style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 243, 255, 0.05);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 243, 255, 0.2);
+  }
+</style>
