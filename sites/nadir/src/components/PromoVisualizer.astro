@@ -353,6 +353,11 @@
         let mixedStream;
         try {
            const audioDest = audioContext.createMediaStreamDestination();
+           
+           // Connect Source AND Analyser to Destination separately for redundancy
+           if (audioSource) {
+               audioSource.connect(audioDest);
+           }
            analyser.connect(audioDest); 
            
            const tracks = [
@@ -473,9 +478,14 @@
                 throw new Error("MediaRecorder not initialized");
             }
             
-            mediaRecorder.start(100); 
-            isRecording = true;
-            if(statusText) statusText.textContent = "ИДЕТ ЗАПИСЬ...";
+            // SMALL DELAY: Let the native stream "warm up" before capturing (Fix for Android/Hymn issue)
+            setTimeout(() => {
+                if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                    mediaRecorder.start(100); 
+                    isRecording = true;
+                    if(statusText) statusText.textContent = "ИДЕТ ЗАПИСЬ...";
+                }
+            }, 200);
         } catch (error) {
             console.error("Recording Start Error:", error);
             let errorMsg = "ОШИБКА ЗАПИСИ";
