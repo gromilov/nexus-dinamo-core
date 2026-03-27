@@ -138,6 +138,13 @@
             analyser.fftSize = 512;
             analyser.smoothingTimeConstant = 0.85;
 
+            // Route: Element -> Analyser -> Destination (Mirror everything to the visualizer)
+            // Essential: NO crossorigin for blob URLs, but we need it for some data URIs.
+            // We handle this by setting it dynamically in the upload handler if needed.
+            const elementSrc = audioContext.createMediaElementSource(promoAudio);
+            elementSrc.connect(analyser);
+            analyser.connect(audioContext.destination);
+
             // Heartbeat oscillator — keeps AudioContext alive on mobile
             const silentOsc = audioContext.createOscillator();
             const silentGain = audioContext.createGain();
@@ -147,6 +154,7 @@
             silentOsc.start();
 
             isInitialized = true;
+            console.log('Audio Engine: Initialized & Linked');
         } catch (e) {
             console.error('Audio Init Error:', e);
             if (statusText) statusText.textContent = 'ОШИБКА ИНИЦИАЛИЗАЦИИ';
@@ -163,8 +171,8 @@
         btnRecord.disabled = true;
         if (statusText) { statusText.textContent = 'ЗАГРУЗКА...'; statusText.classList.remove('text-cyber-accent'); }
 
-        // Desktop: init Web Audio for music-reactive face
-        if (!isAndroid) initAudio();
+        // Ensure audio engine is ready (created once)
+        initAudio();
 
         if (file.size > 30 * 1024 * 1024) {
             if (statusText) statusText.textContent = `ОШИБКА: Файл слишком велик (${Math.round(file.size/1024/1024)}MB > 30MB)`;
@@ -199,23 +207,6 @@
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
                 
-                // --- Safe Visualizer Connection ---
-                try {
-                    if (isAndroid && typeof (promoAudio as any).captureStream === 'function') {
-                        // Android Mirror: mediaStreamSource DOES NOT mute the element
-                        const stream = (promoAudio as any).captureStream() as MediaStream;
-                        const streamSrc = audioContext.createMediaStreamSource(stream);
-                        streamSrc.connect(analyser);
-                        console.log('Android Visualizer Mirror: OK');
-                    } else if (!isAndroid) {
-                        // Desktop: standard MediaElementSource
-                        promoAudio.crossOrigin = 'anonymous';
-                        const elementSrc = audioContext.createMediaElementSource(promoAudio);
-                        elementSrc.connect(analyser);
-                        analyser.connect(audioContext.destination);
-                    }
-                } catch(e) { console.warn('Visualizer connection failed', e); }
-
                 if (statusText) {
                     statusText.textContent = `СЕМЯ ЗАГРУЖЕНО [${Math.round(promoAudio.duration)}с]`;
                     statusText.classList.add('text-cyber-accent');
