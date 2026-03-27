@@ -48,7 +48,8 @@
      </div>
   </div>
 
-  <!-- Hidden Audio Logic replaced by Howler -->
+  <!-- Hidden Audio Logic: Native engine is primary, Howler is backup -->
+  <audio id="promo-audio" class="hidden" crossorigin="anonymous"></audio>
 </div>
 
 <script>
@@ -70,6 +71,8 @@
         // --- State & Context ---
         let audioContext: AudioContext;
         let analyser: AnalyserNode;
+        let promoAudio = document.getElementById('promo-audio') as HTMLAudioElement;
+        let audioSource: MediaElementAudioSourceNode;
         let howl: Howl | null = null;
         let mediaRecorder: MediaRecorder | null = null;
         let recordedChunks: Blob[] = [];
@@ -133,38 +136,28 @@
             if (file) {
                 const url = URL.createObjectURL(file);
                 
-                // Unload previous if exists
-                if (howl) howl.unload();
+                // --- PRIMARY: Native Audio (Nadir Pattern) ---
+                if (promoAudio) {
+                    promoAudio.src = url;
+                    promoAudio.onended = () => { if (isRecording) stopRecording(); };
+                    btnRecord.disabled = false;
+                    if(statusText) statusText.textContent = "СЕМЯ ЗАГРУЖЕНО";
+                    if(statusText) statusText.classList.add('text-cyber-accent');
+                    if(statusText) statusText.classList.remove('text-cyber-muted');
+                }
 
-                // Sniff extension for Howler's hint system
+                // --- BACKUP: Howler Logic (Inactive for now) ---
+                /* 
+                if (howl) howl.unload();
                 const extension = file.name.split('.').pop()?.toLowerCase() || 'mp3';
-                
                 howl = new Howl({
                     src: [url],
                     format: [extension, 'mp3', 'mpeg', 'aac'],
-                    html5: /Android/i.test(navigator.userAgent), // Prefer HTML5 on Android for codec stability
+                    html5: true,
                     preload: true,
-                    onload: () => {
-                        btnRecord.disabled = false;
-                        if(statusText) statusText.textContent = "СЕМЯ ЗАГРУЖЕНО";
-                        if(statusText) statusText.classList.add('text-cyber-accent');
-                        if(statusText) statusText.classList.remove('text-cyber-muted');
-                    },
-                    onloaderror: (id, err) => {
-                        console.warn("Load Warning (Android):", err);
-                        // Still allow recording attempt even if loader is confused
-                        if(statusText) statusText.textContent = "ПРОБУЕМ ФОРМАТ...";
-                        btnRecord.disabled = false;
-                    },
-                    onplayerror: (id, err) => {
-                        console.error("Play Error:", err);
-                        // One last-ditch fallback attempt
-                        Howler.unload();
-                        howl = new Howl({ src: [url], html5: true });
-                        howl.play();
-                    },
                     onend: () => { if (isRecording) stopRecording(); }
                 });
+                */
             }
         });
 
@@ -179,9 +172,13 @@
                     analyser.fftSize = 512;
                     analyser.smoothingTimeConstant = 0.85;
 
-                    // Manual loading fallback logic will be used if Howler fails
-                    // But for now, we connect Howler's masterGain to our analyser
-                    Howler.masterGain.connect(analyser);
+                    // --- PRIMARY: Connect Native Audio Source (Nadir Pattern) ---
+                    audioSource = audioContext.createMediaElementSource(promoAudio);
+                    audioSource.connect(analyser);
+                    analyser.connect(audioContext.destination);
+
+                    // --- BACKUP: Howler Connection (Inactive) ---
+                    // Howler.masterGain.connect(analyser);
 
                     // Android Heartbeat: Silent Oscillator to keep AudioContext alive
                     const silentOsc = audioContext.createOscillator();
@@ -198,8 +195,8 @@
                 }
             }
 
-            if (Howler.state === 'suspended') {
-                Howler.ctx.resume();
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
             }
         };
 
@@ -243,7 +240,7 @@
         let bass = 0;
         let vocals = 0;
 
-        const isDormant = !isInitialized || !howl || !howl.playing();
+        const isDormant = !isInitialized || !promoAudio || promoAudio.paused;
 
         if (!isDormant) {
             analyser.getByteFrequencyData(dataArray);
@@ -442,13 +439,13 @@
     // 5. Action Triggers
     const stopRecording = () => {
         if (isRecording && mediaRecorder?.state === 'recording') {
-            howl?.stop();
+            promoAudio.pause();
             mediaRecorder.stop();
         }
     };
 
     btnRecord.addEventListener('click', async () => {
-        if (!howl) return;
+        if (!promoAudio || !promoAudio.src) return;
         
         try {
             initAudio(); 
@@ -466,11 +463,11 @@
 
             setupRecording();
             
-            if (Howler.state === 'suspended') {
-                await Howler.ctx.resume();
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
             }
             
-            howl?.play();
+            promoAudio.play();
             
             if (!mediaRecorder) {
                 throw new Error("MediaRecorder not initialized");
