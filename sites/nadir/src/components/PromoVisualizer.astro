@@ -53,6 +53,7 @@
 </div>
 
 <script>
+    // Howler is retained for potential future iOS debugging
     import { Howl, Howler } from 'howler';
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -60,25 +61,24 @@
         const btnRecord = document.getElementById('btn-record') as HTMLButtonElement;
         const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
         const canvas = document.getElementById('promo-canvas') as HTMLCanvasElement;
+        const promoAudio = document.getElementById('promo-audio') as HTMLAudioElement;
         
         const uiLayer = document.getElementById('promo-ui');
         const stopLayer = document.getElementById('stop-layer');
         const statusText = document.getElementById('recording-status');
         const paletteContainer = document.getElementById('color-palette');
 
-        if (!audioUpload || !btnRecord || !canvas || !btnStop || !paletteContainer) return;
+        if (!audioUpload || !btnRecord || !canvas || !btnStop || !paletteContainer || !promoAudio) return;
 
         // --- State & Context ---
         let audioContext: AudioContext;
         let analyser: AnalyserNode;
-        let decodedBuffer: AudioBuffer | null = null;  // Decoded PCM for visualization
-        let activeSource: AudioBufferSourceNode | null = null; // Current playback source
-        let storedFile: File | null = null; // Original file — for Android captureStream path
-        let captureAudioEl: HTMLAudioElement | null = null; // Android audio capture element
+        let audioElementSource: MediaElementAudioSourceNode | null = null;
         let mediaRecorder: MediaRecorder | null = null;
         let recordedChunks: Blob[] = [];
         let isInitialized = false;
         let isRecording = false;
+        let hasLoadedFile = false;
 
     // 9-Color Palette
     const colors = [
@@ -92,17 +92,14 @@
         { name: 'White', value: '255, 255, 255', hex: '#FFFFFF' },
         { name: 'Orange', value: '255, 120, 0', hex: '#FF7800' }
     ];
-    let selectedColor = colors[0].value; // Default Gold
+    let selectedColor = colors[0].value;
 
-    // Initialize Color Palette UI
     colors.forEach((c, i) => {
         const btn = document.createElement('button');
         btn.className = `w-5 h-5 rounded-none border transition-transform hover:scale-125 focus:outline-none ${i === 0 ? 'border-white scale-110' : 'border-black'}`;
         btn.style.backgroundColor = c.hex;
-        
         btn.addEventListener('click', () => {
             selectedColor = c.value;
-            // Update UI
             Array.from(paletteContainer.children).forEach(child => {
                 (child as HTMLElement).classList.remove('border-white', 'scale-125');
                 (child as HTMLElement).classList.add('border-black');
@@ -110,7 +107,6 @@
             btn.classList.add('border-white', 'scale-125');
             btn.classList.remove('border-black');
         });
-        
         paletteContainer.appendChild(btn);
     });
 
@@ -120,9 +116,7 @@
     let ch = 1920;
     
     const setupCanvas = () => {
-        if (isRecording) return; // Prevent resolution shift during recording
-        
-        // High-res for Desktop, Safe-res for Mobile (Android encoders often fail at 1080x1920)
+        if (isRecording) return;
         const isMobile = window.innerWidth < 600 || /Android/i.test(navigator.userAgent);
         cw = isMobile ? 720 : 1080;
         ch = isMobile ? 1280 : 1920;
@@ -131,90 +125,92 @@
     };
     setupCanvas();
 
-        // 1. Audio Upload Handler — fetch→decodeAudioData bypasses Android blob MIME issues
-        audioUpload.addEventListener('change', async (e) => {
-            const target = e.target as HTMLInputElement;
-            const file = target.files?.[0];
-            if (!file) return;
+    // --- Init Web Audio (called once on first file load — file picker IS a user gesture) ---
+    const initAudio = () => {
+        if (isInitialized) return;
+        try {
+            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+            // Don't force sampleRate — let Android pick its preferred rate to avoid decoder mismatches
+            audioContext = new AudioContextClass();
 
-            btnRecord.disabled = true;
-            if(statusText) statusText.textContent = "ДЕКОДИРОВАНИЕ...";
-            if(statusText) statusText.classList.remove('text-cyber-accent');
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            analyser.smoothingTimeConstant = 0.85;
 
-            try {
-                // Init AudioContext here — file picker IS a user gesture on all platforms
-                if (!isInitialized) {
-                    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-                    audioContext = new AudioContextClass({ sampleRate: 44100 });
+            // Connect audio ELEMENT to the analyser (once — changing src reuses the same node)
+            audioElementSource = audioContext.createMediaElementSource(promoAudio);
+            audioElementSource.connect(analyser);
+            analyser.connect(audioContext.destination);
 
-                    analyser = audioContext.createAnalyser();
-                    analyser.fftSize = 512;
-                    analyser.smoothingTimeConstant = 0.85;
-                    analyser.connect(audioContext.destination);
+            // Android Heartbeat: silent oscillator keeps AudioContext alive
+            const silentOsc = audioContext.createOscillator();
+            const silentGain = audioContext.createGain();
+            silentGain.gain.value = 0.0001;
+            silentOsc.connect(silentGain);
+            silentGain.connect(audioContext.destination);
+            silentOsc.start();
 
-                    // Android Heartbeat: keeps AudioContext alive between user gestures
-                    const silentOsc = audioContext.createOscillator();
-                    const silentGain = audioContext.createGain();
-                    silentGain.gain.value = 0.0001;
-                    silentOsc.connect(silentGain);
-                    silentGain.connect(audioContext.destination);
-                    silentOsc.start();
+            isInitialized = true;
+        } catch (e) {
+            console.error('Audio Init Error:', e);
+            if (statusText) statusText.textContent = 'ОШИБКА ИНИЦИАЛИЗАЦИИ';
+        }
+    };
 
-                    isInitialized = true;
+    // 1. Audio Upload Handler
+    // KEY: FileReader.readAsDataURL() produces "data:audio/mpeg;base64,..."
+    // The MIME type is embedded IN THE STRING — Android Chrome CANNOT miss it.
+    // This solves the blob: URL MIME ambiguity that broke MP3 decoding on Android.
+    audioUpload.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file) return;
+
+        hasLoadedFile = false;
+        btnRecord.disabled = true;
+        if (statusText) { statusText.textContent = 'ЗАГРУЗКА...'; statusText.classList.remove('text-cyber-accent'); }
+
+        // Init Web Audio on first file (user gesture unlocks AudioContext)
+        initAudio();
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            // data URI: "data:audio/mpeg;base64,AAAA..." — MIME type is crystal clear
+            promoAudio.src = reader.result as string;
+            promoAudio.oncanplaythrough = () => {
+                hasLoadedFile = true;
+                btnRecord.disabled = false;
+                if (statusText) {
+                    statusText.textContent = `СЕМЯ ЗАГРУЖЕНО [${Math.round(promoAudio.duration)}с]`;
+                    statusText.classList.add('text-cyber-accent');
+                    statusText.classList.remove('text-cyber-muted');
                 }
-
-                if (audioContext.state === 'suspended') await audioContext.resume();
-
-                // Stop any previously playing source
-                try { activeSource?.stop(); } catch(e) {}
-                activeSource = null;
-                decodedBuffer = null;
-
-                // Keep original file reference for Android captureStream path
-                storedFile = file;
-
-                // Fetch the file as ArrayBuffer — format-agnostic on all platforms
-                const url = URL.createObjectURL(file);
-                const response = await fetch(url);
-                const arrayBuffer = await response.arrayBuffer();
-                URL.revokeObjectURL(url);
-
-                // Decode to raw PCM for visualization
-                decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                const dur = Math.round(decodedBuffer.duration);
+            };
+            promoAudio.onerror = () => {
+                // Still allow attempt — some Android versions fire error but still play
+                hasLoadedFile = true;
                 btnRecord.disabled = false;
-                if(statusText) statusText.textContent = `СЕМЯ ДЕКОДИРОВАНО [${dur}с]`;
-                if(statusText) statusText.classList.add('text-cyber-accent');
-                if(statusText) statusText.classList.remove('text-cyber-muted');
-
-            } catch (err) {
-                console.error("Decode Error:", err);
-                if(statusText) statusText.textContent = "ОШИБКА ДЕКОДИРОВАНИЯ";
-                // Allow attempt anyway in case it's a minor hiccup
-                btnRecord.disabled = false;
-            }
-        });
-
-        // initAudio is now called inline in the upload handler
-        // Kept as a resume helper for edge cases
-        const resumeContext = async () => {
-            if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
+                if (statusText) statusText.textContent = 'ОШИБКА ЗАГРУЗКИ (попробуй всё равно)';
+            };
+            promoAudio.load();
         };
+        reader.onerror = () => {
+            if (statusText) statusText.textContent = 'ОШИБКА ЧТЕНИЯ ФАЙЛА';
+        };
+        reader.readAsDataURL(file);
+    });
 
     // 3. The Visualizer Loop
     let time = 0;
     
-    // Grid generation (cached for performance)
     const gridCanvas = document.createElement('canvas');
     gridCanvas.width = cw;
     gridCanvas.height = ch;
     const gctx = gridCanvas.getContext('2d');
     if (gctx) {
-        gctx.strokeStyle = 'rgba(255, 255, 255, 0.012)'; // Extremely faint grid like the reference
+        gctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
         gctx.lineWidth = 1;
-        const gridSize = 40; // Tighter grid
+        const gridSize = 40;
         gctx.beginPath();
         for(let x=0; x<cw; x+=gridSize) { gctx.moveTo(x,0); gctx.lineTo(x,ch); }
         for(let y=0; y<ch; y+=gridSize) { gctx.moveTo(0,y); gctx.lineTo(cw,y); }
@@ -225,26 +221,17 @@
         if (!ctx) return;
         requestAnimationFrame(drawFrame);
 
-        // 1. Draw Background (Absolute Void Black)
         ctx.fillStyle = '#000000'; 
         ctx.fillRect(0, 0, cw, ch);
-        
-        // Draw grid overlay
         ctx.drawImage(gridCanvas, 0, 0);
-
         time += 0.015;
 
-        // Default to zero if dormant
         const bufferLength = isInitialized ? analyser.frequencyBinCount : 0;
         const dataArray = new Uint8Array(bufferLength || 512);
 
-        let bassSum = 0;
-        let vocalsSum = 0;
-        let bass = 0;
-        let vocals = 0;
+        let bassSum = 0, vocalsSum = 0, bass = 0, vocals = 0;
 
-        const isPlaying = activeSource !== null;
-        const isDormant = !isInitialized || !decodedBuffer || !isPlaying;
+        const isDormant = !isInitialized || !hasLoadedFile || promoAudio.paused;
 
         if (!isDormant) {
             analyser.getByteFrequencyData(dataArray);
@@ -255,11 +242,8 @@
         }
 
         ctx.save();
-        
-        // --- DRAW TEXT OVERLAYS ---
         const baseColor = `rgba(${selectedColor},`; 
         
-        // Footer Text (Small Syndicate branding for Stories bottom edge)
         if (isRecording || isDormant) {
             ctx.font = 'normal 400 20px monospace';
             ctx.textAlign = 'center';
@@ -269,17 +253,14 @@
             ctx.fillText('СИНДИКАТ', cw/2, ch * 0.82);
         }
         
-        // --- DRAW FACE ---
         ctx.translate(cw / 2, ch * 0.48); 
-        
-        const baseScale = (cw * 0.8) / 120; // 80% natural adaptivity (was causing issues due to fixed cw/ch)
+        const baseScale = (cw * 0.8) / 120;
         const scale = baseScale + (bass/255) * 0.5; 
         ctx.scale(scale, scale);
         
         const pulse = Math.sin(time) * 2;
         const breathe = isDormant ? Math.sin(time * 2.5) : 0; 
 
-        // EYES
         const anger = isDormant ? (-14 + breathe) : Math.pow(vocals / 255, 2.5) * 25; 
         const eyeGlow = 40 + (isDormant ? breathe*3 : Math.pow(vocals/255, 2) * 50);
         const opacity = '0.9)';
@@ -290,54 +271,36 @@
         ctx.fillStyle = baseColor + opacity;
         
         ctx.beginPath();
-        // Left Eye (Sleeping slits if dormant, angular shards if active)
         if(isDormant) {
-           ctx.moveTo(-50, -45 + pulse);
-           ctx.lineTo(-15, -38 + pulse);
-           ctx.lineTo(-45, -43 + pulse);
+           ctx.moveTo(-50, -45 + pulse); ctx.lineTo(-15, -38 + pulse); ctx.lineTo(-45, -43 + pulse);
         } else {
-           ctx.moveTo(-55, -50 + pulse);
-           ctx.lineTo(-15, -28 + anger + pulse);
-           ctx.lineTo(-30, -35 + pulse);
+           ctx.moveTo(-55, -50 + pulse); ctx.lineTo(-15, -28 + anger + pulse); ctx.lineTo(-30, -35 + pulse);
         }
         ctx.fill();
         
         ctx.beginPath();
-        // Right Eye
         if(isDormant) {
-           ctx.moveTo(50, -45 + pulse);
-           ctx.lineTo(15, -38 + pulse);
-           ctx.lineTo(45, -43 + pulse);
+           ctx.moveTo(50, -45 + pulse); ctx.lineTo(15, -38 + pulse); ctx.lineTo(45, -43 + pulse);
         } else {
-           ctx.moveTo(55, -50 + pulse);
-           ctx.lineTo(15, -28 + anger + pulse);
-           ctx.lineTo(30, -35 + pulse);
+           ctx.moveTo(55, -50 + pulse); ctx.lineTo(15, -28 + anger + pulse); ctx.lineTo(30, -35 + pulse);
         }
         ctx.fill();
 
-        // MOUTH (Equalizer / Sleeping Teeth)
         const numBars = 25;
         const unitWidth = 70 / numBars; 
         const barWidth = unitWidth * 0.4;
         const mouthY = 20 + pulse;
-        
         ctx.shadowBlur = 20;
         
         for (let i = 0; i < numBars; i++) {
             const val = isDormant ? 0 : dataArray[5 + Math.floor(i * (40 / numBars))];
             const dynamicValue = isDormant ? 0 : Math.pow(val / 255, 3);
             const taper = 1 - Math.pow(i / numBars, 2);
-            
             const finalHeight = isDormant ? (2 + (breathe + 1)) * taper + 1 : (dynamicValue * 70 * taper) + 2;
-            
             const xRight = (i * unitWidth);
             const xLeft = -(i * unitWidth) - unitWidth;
-            
-            // Lower
             ctx.fillRect(xRight + unitWidth/2, mouthY, barWidth, finalHeight);
             ctx.fillRect(xLeft + unitWidth/2, mouthY, barWidth, finalHeight);
-            
-            // Upper
             const uHeight = finalHeight * 0.5 + (isDormant ? 1 : 2);
             ctx.fillRect(xRight + unitWidth/2, mouthY - uHeight - 4, barWidth, uHeight);
             ctx.fillRect(xLeft + unitWidth/2, mouthY - uHeight - 4, barWidth, uHeight);
@@ -346,35 +309,25 @@
         ctx.restore();
     };
     
-    // Start drawing loop immediately to draw Face in Dormant State
     drawFrame();
 
     // 4. Recording Setup
     const setupRecording = () => {
-        // Optimize for Stories: 30 FPS drastically reduces file size vs 60
         const canvasStream = canvas.captureStream(30); 
-        
         let mixedStream: MediaStream;
-        const isAndroid = /Android/i.test(navigator.userAgent);
 
         try {
             let audioTracks: MediaStreamTrack[] = [];
 
-            // Android: use captureStream() on native audio element — more reliable than Web Audio MediaStreamDest
-            if (isAndroid && storedFile && typeof (HTMLAudioElement.prototype as any).captureStream === 'function') {
-                // Cleanup previous capture element
-                if (captureAudioEl) { captureAudioEl.pause(); captureAudioEl.src = ''; }
-                captureAudioEl = new Audio();
-                // Explicitly typed blob to help Android codec selection
-                const typedBlob = new Blob([storedFile], { type: storedFile.type || 'audio/mpeg' });
-                captureAudioEl.src = URL.createObjectURL(typedBlob);
-                captureAudioEl.volume = 0; // Muted — user hears through Web Audio
-                const capStream = (captureAudioEl as any).captureStream() as MediaStream;
+            // Primary: captureStream() on the audio element
+            // Works reliably on Android Chrome — uses hardware decoder output directly
+            if (typeof (promoAudio as any).captureStream === 'function') {
+                const capStream = (promoAudio as any).captureStream() as MediaStream;
                 audioTracks = capStream.getAudioTracks();
-                console.log('[Capture] Android captureStream tracks:', audioTracks.length);
+                console.log('[Capture] captureStream tracks:', audioTracks.length);
             }
             
-            // Desktop/fallback: Web Audio MediaStreamDestination
+            // Fallback: Web Audio MediaStreamDestination (desktop browsers without captureStream)
             if (audioTracks.length === 0) {
                 const audioDest = audioContext.createMediaStreamDestination();
                 analyser.connect(audioDest);
@@ -382,28 +335,15 @@
                 console.log('[Capture] Web Audio audioDest tracks:', audioTracks.length);
             }
 
-            const tracks = [
-                ...canvasStream.getVideoTracks(),
-                ...audioTracks
-            ];
-            mixedStream = new MediaStream(tracks);
+            mixedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
         } catch(e) {
-           console.warn("Could not merge audio stream, falling back to canvas only", e);
+           console.warn('Could not merge audio stream, falling back to canvas only', e);
            mixedStream = canvasStream;
         }
 
-        // Robust MIME type hunting for cross-platform stability
         let mimeType = 'video/mp4';
         let extension = 'mp4';
-        
-        const candidateMimeTypes = [
-            'video/mp4',
-            'video/webm;codecs=h264',
-            'video/webm;codecs=vp9',
-            'video/webm;codecs=vp8',
-            'video/webm'
-        ];
-
+        const candidateMimeTypes = ['video/mp4', 'video/webm;codecs=h264', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
         for (const candidate of candidateMimeTypes) {
             if (MediaRecorder.isTypeSupported(candidate)) {
                 mimeType = candidate;
@@ -413,27 +353,23 @@
         }
 
         mediaRecorder = new MediaRecorder(mixedStream, { 
-            mimeType: mimeType,
-            videoBitsPerSecond: 5000000 // 5 Mbps: Safe baseline for mobile hardware encoders
+            mimeType,
+            videoBitsPerSecond: 5000000
         });
 
-        // Diagnostic feedback for Android stability
         mediaRecorder.onerror = (event) => {
-            console.error("Encoder Error:", event);
-            if(statusText) statusText.textContent = "ОШИБКА ДВИЖКА ЗАПИСИ";
+            console.error('Encoder Error:', event);
+            if(statusText) statusText.textContent = 'ОШИБКА ДВИЖКА ЗАПИСИ';
         };
 
         mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-                recordedChunks.push(e.data);
-            }
+            if (e.data.size > 0) recordedChunks.push(e.data);
         };
 
-        const finalizeRecording = () => {
+        mediaRecorder.onstop = () => {
             if (recordedChunks.length === 0) return;
             const blob = new Blob(recordedChunks, { type: mimeType });
             recordedChunks = [];
-            
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             document.body.appendChild(a);
@@ -442,93 +378,65 @@
             a.download = `NADIR_PROMO_${Date.now()}.${extension}`;
             a.click();
             window.URL.revokeObjectURL(url);
-            
-            // Reset UI
-            if(uiLayer) uiLayer.style.opacity = '1';
-            if(uiLayer) uiLayer.style.pointerEvents = 'auto';
-            if(stopLayer) {
-                stopLayer.classList.add('hidden');
-                stopLayer.style.opacity = '0';
-                stopLayer.style.pointerEvents = 'none';
-            }
+            if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
+            if(stopLayer) { stopLayer.classList.add('hidden'); stopLayer.style.opacity = '0'; stopLayer.style.pointerEvents = 'none'; }
             if(statusText) {
-                const warnMsg = extension === 'webm' ? ' СКРЫТО В WEBM (НУЖНА КОНВЕРТАЦИЯ ДЛЯ IPHONE)' : '';
-                statusText.textContent = `УСПЕШНО СКАЧАНО (.${extension.toUpperCase()})${warnMsg}`;
+                const warnMsg = extension === 'webm' ? ' (НУЖНА КОНВЕРТАЦИЯ ДЛЯ IPHONE)' : '';
+                statusText.textContent = `СКАЧАНО .${extension.toUpperCase()}${warnMsg}`;
                 statusText.classList.remove('text-cyber-muted', 'animate-pulse');
                 statusText.classList.add('text-cyber-accent');
             }
             isRecording = false;
         };
-
-        mediaRecorder.onstop = finalizeRecording;
     };
 
     // 5. Action Triggers
     const stopRecording = () => {
         if (isRecording && mediaRecorder?.state === 'recording') {
-            try { activeSource?.stop(); } catch(e) {}
-            activeSource = null;
-            if (captureAudioEl) { captureAudioEl.pause(); }
+            promoAudio.pause();
             mediaRecorder.stop();
         }
     };
 
     btnRecord.addEventListener('click', async () => {
-        if (!decodedBuffer) return;
+        if (!hasLoadedFile) return;
         
         try {
-            await resumeContext();
+            if (audioContext?.state === 'suspended') await audioContext.resume();
 
-            // Create a fresh source node every time (nodes are single-use)
-            activeSource = audioContext.createBufferSource();
-            activeSource.buffer = decodedBuffer;
-            activeSource.connect(analyser);
-            activeSource.onended = () => { if (isRecording) stopRecording(); };
+            promoAudio.currentTime = 0;
+            promoAudio.onended = () => { if (isRecording) stopRecording(); };
 
-            // Hide Main UI
-            if(uiLayer) uiLayer.style.opacity = '0';
-            if(uiLayer) uiLayer.style.pointerEvents = 'none';
-
-            // Show Dedicated Stop Button
+            if(uiLayer) { uiLayer.style.opacity = '0'; uiLayer.style.pointerEvents = 'none'; }
             if(stopLayer) {
                 stopLayer.classList.remove('hidden');
                 stopLayer.style.pointerEvents = 'auto';
-                setTimeout(()=> stopLayer.style.opacity = '1', 100);
+                setTimeout(() => stopLayer.style.opacity = '1', 100);
             }
 
             setupRecording();
 
-            if (!mediaRecorder) {
-                throw new Error("MediaRecorder not initialized");
-            }
+            if (!mediaRecorder) throw new Error('MediaRecorder not initialized');
 
-            // Start audio + captureStream audio element at the same time
-            activeSource.start(0);
-            if (captureAudioEl) captureAudioEl.play();
+            promoAudio.play();
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === 'inactive') {
                     mediaRecorder.start(100); 
                     isRecording = true;
-                    if(statusText) statusText.textContent = "ИДЕТ ЗАПИСЬ...";
+                    if(statusText) statusText.textContent = 'ИДЕТ ЗАПИСЬ...';
                 }
             }, 200);
 
-        } catch (error) {
-            console.error("Recording Start Error:", error);
-            let errorMsg = "ОШИБКА ЗАПИСИ";
-            if (error.name === 'NotAllowedError') errorMsg = "БРАУЗЕР БЛОКИРУЕТ ЗВУК (Нажми Разрешить)";
-            if (error.name === 'SecurityError') errorMsg = "ОШИБКА БЕЗОПАСНОСТИ";
-            
-            if(statusText) statusText.textContent = errorMsg;
-            alert(errorMsg);
-            if(uiLayer) {
-                uiLayer.style.opacity = '1';
-                uiLayer.style.pointerEvents = 'auto';
-            }
+        } catch (error: any) {
+            console.error('Recording Start Error:', error);
+            let errorMsg = 'ОШИБКА ЗАПИСИ';
+            if (error.name === 'NotAllowedError') errorMsg = 'БРАУЗЕР БЛОКИРУЕТ ЗВУК';
+            if (error.name === 'SecurityError') errorMsg = 'ОШИБКА БЕЗОПАСНОСТИ';
+            if (statusText) statusText.textContent = errorMsg;
+            if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
         }
     });
 
-    // Manual stop via dedicated button
     btnStop.addEventListener('click', stopRecording);
 });
 </script>
