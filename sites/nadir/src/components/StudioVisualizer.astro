@@ -271,11 +271,11 @@
                 if (!isRecording) return;
                 const inputLeft = e.inputBuffer.getChannelData(0);
                 const inputRight = e.inputBuffer.getChannelData(1);
-                const data = new Float32Array(inputLeft.length * 2);
-                for (let i = 0; i < inputLeft.length; i++) {
-                    data[i * 2] = inputLeft[i];
-                    data[i * 2 + 1] = inputRight[i];
-                }
+                
+                // AAC (f32-planar) requires all Left samples followed by all Right samples (LLLLRRRR)
+                const data = new Float32Array(inputLeft.length + inputRight.length);
+                data.set(inputLeft, 0);
+                data.set(inputRight, inputLeft.length);
 
                 try {
                     const audioFrame = new AudioData({
