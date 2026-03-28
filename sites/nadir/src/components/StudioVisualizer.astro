@@ -261,24 +261,23 @@
                 console.log('[Recorder] Android fallback tracks:', audioTracks.length);
             }
 
-            const mixedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
-            const candidates = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
-            let mime = 'video/webm';
-            for (const c of candidates) { if (MediaRecorder.isTypeSupported(c)) { mime = c; break; } }
-            selectedMimeType = mime;
+            // DIAGNOSTIC TEST: Switching to SILENT MP4 to check Telegram Seek Compatibility
+            // We ignore audio tracks for this specific test
+            const mixedStream = new MediaStream([...canvasStream.getVideoTracks()]);
+            
+            // Priority to MP4 (H.264) for Telegram testing
+            const testMime = 'video/mp4;codecs=avc1';
+            let finalMime = 'video/webm';
+            if (MediaRecorder.isTypeSupported(testMime)) finalMime = testMime;
+            selectedMimeType = finalMime;
 
-            // Force stable bitrate and 100ms timeslice to force frequent clusters for better Telegram trimming
             const recorderOptions: any = { 
-                mimeType: mime, 
-                videoBitsPerSecond: 1200000 
+                mimeType: finalMime, 
+                videoBitsPerSecond: 2500000 
             };
-
-            // Chrome-based browsers (Android) support forcing keyframe intervals
-            if (isAndroid) {
-                recorderOptions.videoKeyframeIntervalDuration = 1000; // Keyframe every 1s
-            }
-
+            
             mediaRecorder = new MediaRecorder(mixedStream, recorderOptions);
+            console.log(`[Diagnostic] Recorder started in ${finalMime} (Silent Mode)`);
 
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = async () => {
@@ -356,7 +355,7 @@
                 
                 recordedChunks = [];
                 recordStartTime = performance.now();
-                // 100ms timeslice creates more frequent WebM clusters for precise seeking
+                // Measure the impact of timeslice on Telegram behavior
                 mediaRecorder.start(100);
                 isRecording = true;
                 if(statusText) statusText.textContent = 'ЗАПИСЬ...';
