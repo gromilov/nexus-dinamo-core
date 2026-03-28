@@ -95,23 +95,21 @@
   <!-- Audio element: invisible but NOT display:none (critical for some mobile engines) -->
   <audio id="studio-audio" controls preload="auto" class="opacity-0 pointer-events-none absolute -z-10"></audio>
 
-
-
-
 </div>
 
 <script>
-    // Howler is retained for potential future iOS debugging
-    import { Howl, Howler } from 'howler';
+    import { Buffer } from 'buffer';
+    if (typeof window !== 'undefined') { window.Buffer = Buffer; }
+    
     import { Decoder, Reader, tools } from 'ts-ebml';
 
     document.addEventListener('DOMContentLoaded', () => {
+        // --- UI Reference ---
         const audioUpload = document.getElementById('audio-upload') as HTMLInputElement;
         const btnRecord = document.getElementById('btn-record') as HTMLButtonElement;
         const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
         const canvas = document.getElementById('studio-canvas') as HTMLCanvasElement;
         const studioAudio = document.getElementById('studio-audio') as HTMLAudioElement;
-        
         const uiLayer = document.getElementById('studio-ui');
         const stopLayer = document.getElementById('stop-layer');
         const statusText = document.getElementById('recording-status');
@@ -122,517 +120,281 @@
 
         if (!audioUpload || !btnRecord || !canvas || !btnStop || !paletteContainer || !studioAudio) return;
 
-        // --- State & Context ---
+        // --- Shared State ---
         const isAndroid = /Android/i.test(navigator.userAgent);
-        let audioContext: AudioContext;
-        let analyser: AnalyserNode;
+        let audioContext: AudioContext | null = null;
+        let analyser: AnalyserNode | null = null;
+        let audioSource: MediaElementAudioSourceNode | null = null;
+        let audioDestination: MediaStreamDestinationNode | null = null;
+        
         let mediaRecorder: MediaRecorder | null = null;
         let recordedChunks: Blob[] = [];
-        let isInitialized = false;
         let isRecording = false;
         let hasLoadedFile = false;
         let recordStartTime = 0;
-        let recordDuration = 0;
-        let selectedMimeType = ''; // To track the final chosen format
+        let selectedMimeType = '';
 
-    // 9-Color Palette
-    const colors = [
-        { name: 'Gold', value: '212, 175, 55', hex: '#D4AF37' },
-        { name: 'Cyan', value: '0, 243, 255', hex: '#00F3FF' },
-        { name: 'Magenta', value: '255, 0, 255', hex: '#FF00FF' },
-        { name: 'Lime', value: '204, 255, 0', hex: '#CCFF00' },
-        { name: 'Crimson', value: '255, 50, 50', hex: '#FF3232' },
-        { name: 'Purple', value: '150, 50, 255', hex: '#9632FF' },
-        { name: 'Blue', value: '100, 150, 255', hex: '#6496FF' },
-        { name: 'White', value: '255, 255, 255', hex: '#FFFFFF' },
-        { name: 'Orange', value: '255, 120, 0', hex: '#FF7800' }
-    ];
-    let selectedColor = colors[0].value;
+        // --- Palette Setup ---
+        const colors = [
+            { name: 'Gold', value: '212, 175, 55', hex: '#D4AF37' },
+            { name: 'Cyan', value: '0, 243, 255', hex: '#00F3FF' },
+            { name: 'Magenta', value: '255, 0, 255', hex: '#FF00FF' },
+            { name: 'Lime', value: '204, 255, 0', hex: '#CCFF00' },
+            { name: 'Crimson', value: '255, 50, 50', hex: '#FF3232' },
+            { name: 'Purple', value: '150, 50, 255', hex: '#9632FF' },
+            { name: 'Blue', value: '100, 150, 255', hex: '#6496FF' },
+            { name: 'White', value: '255, 255, 255', hex: '#FFFFFF' },
+            { name: 'Orange', value: '255, 120, 0', hex: '#FF7800' }
+        ];
+        let selectedColor = colors[0].value;
 
-    colors.forEach((c, i) => {
-        const btn = document.createElement('button');
-        btn.className = `w-5 h-5 rounded-none border transition-transform hover:scale-125 focus:outline-none ${i === 0 ? 'border-white scale-110' : 'border-black'}`;
-        btn.style.backgroundColor = c.hex;
-        btn.addEventListener('click', () => {
-            selectedColor = c.value;
-            Array.from(paletteContainer.children).forEach(child => {
-                (child as HTMLElement).classList.remove('border-white', 'scale-125');
-                (child as HTMLElement).classList.add('border-black');
+        colors.forEach((c, i) => {
+            const btn = document.createElement('button');
+            btn.className = `w-5 h-5 rounded-none border transition-transform hover:scale-125 focus:outline-none ${i === 0 ? 'border-white scale-110' : 'border-black'}`;
+            btn.style.backgroundColor = c.hex;
+            btn.addEventListener('click', () => {
+                selectedColor = c.value;
+                Array.from(paletteContainer.children).forEach(ch => {
+                    (ch as HTMLElement).classList.remove('border-white', 'scale-125');
+                    (ch as HTMLElement).classList.add('border-black');
+                });
+                btn.classList.add('border-white', 'scale-125'); btn.classList.remove('border-black');
             });
-            btn.classList.add('border-white', 'scale-125');
-            btn.classList.remove('border-black');
+            paletteContainer.appendChild(btn);
         });
-        paletteContainer.appendChild(btn);
-    });
 
-    // Canvas Setup
-    const ctx = canvas.getContext('2d');
-    let cw = 1080;
-    let ch = 1920;
-    
-    const setupCanvas = () => {
-        if (isRecording) return;
-        const isMobile = window.innerWidth < 600 || /Android/i.test(navigator.userAgent);
-        // Force 720p for better mobile encoder stability
-        cw = 720;
-        ch = 1280;
-        canvas.width = cw;
-        canvas.height = ch;
-    };
-    setupCanvas();
-
-    const initAudio = () => {
-        if (isInitialized) return;
-        try {
-            const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-            audioContext = new AudioContextClass();
-
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 512;
-            analyser.smoothingTimeConstant = 0.85;
-
-            // Route: Element -> Analyser -> Destination (Mirror everything to the visualizer)
-            // Essential: NO crossorigin for blob URLs, but we need it for some data URIs.
-            // We handle this by setting it dynamically in the upload handler if needed.
-            const elementSrc = audioContext.createMediaElementSource(studioAudio);
-            elementSrc.connect(analyser);
-            analyser.connect(audioContext.destination);
-
-            // Heartbeat oscillator — keeps AudioContext alive on mobile
-            const silentOsc = audioContext.createOscillator();
-            const silentGain = audioContext.createGain();
-            silentGain.gain.value = 0.0001;
-            silentOsc.connect(silentGain);
-            silentGain.connect(audioContext.destination);
-            silentOsc.start();
-
-            isInitialized = true;
-            console.log('Audio Engine: Initialized & Linked');
-        } catch (e) {
-            console.error('Audio Init Error:', e);
-            if (statusText) statusText.textContent = 'ОШИБКА ИНИЦИАЛИЗАЦИИ';
-        }
-    };
-
-    // 1. Audio Upload Handler
-    audioUpload.addEventListener('change', async (e) => {
-        const target = e.target as HTMLInputElement;
-        const file = target.files?.[0];
-        if (!file) return;
-
-        hasLoadedFile = false;
-        btnRecord.disabled = true;
-        const fileSizeMb = (file.size / (1024 * 1024)).toFixed(2);
-        if (statusText) { 
-            statusText.textContent = `ЗАГРУЗКА [${fileSizeMb}MB]...`; 
-            statusText.classList.remove('text-cyber-accent'); 
-        }
-
-        if (file.size === 0) {
-            if (statusText) statusText.textContent = `ПЫТАЮСЬ ПРОЧЕСТЬ [${fileSizeMb}MB]...`;
-            // Removed return: some Android cloud providers report 0 bytes initially but the file is readable
-        }
-
-        if (closeModal) {
-            closeModal.onclick = () => {
-                if (errorModal) {
-                    errorModal.classList.remove('opacity-100');
-                    setTimeout(() => errorModal.classList.add('hidden'), 300);
-                }
-            };
-        }
-
-        if (file.size > 30 * 1024 * 1024) {
-            if (statusText) statusText.textContent = `ОШИБКА: Файл слишком велик (${fileSizeMb}MB > 30MB)`;
-            return;
-        }
-
-        // Ensure audio engine is ready (created once)
-        initAudio();
-        if (audioContext && audioContext.state === 'suspended') {
-            audioContext.resume().catch(e => console.warn('Context resume failed', e));
-        }
-        const loadAudio = (src: string, type: string) => {
-            // Essential: clear src and sources to avoid ambiguity
-            studioAudio.removeAttribute('src');
-            studioAudio.innerHTML = '';
-            
-            // Try explicit <source> first (like NadirVoice)
-            const source = document.createElement('source');
-            source.src = src;
-            source.type = type;
-            studioAudio.appendChild(source);
-            
-            // Fallback: set direct src AFTER a small delay if loading fails
-            // Some mobile browsers prefer direct src for blobs
-            const fallbackTimeout = setTimeout(() => {
-                if (studioAudio.networkState === 3 || studioAudio.networkState === 0) { // EMPTY or NO_SOURCE
-                    console.log('Switching to direct src fallback...');
-                    studioAudio.src = src;
-                    studioAudio.load();
-                }
-            }, 300);
-
-            // Detailed status chain
-            studioAudio.onloadedmetadata = () => { if (statusText) statusText.textContent = 'МЕТАДАННЫЕ [OK]...'; };
-            studioAudio.oncanplay = () => {
-                clearTimeout(fallbackTimeout);
-                hasLoadedFile = true;
-                btnRecord.disabled = false;
+        // --- Audio Engine Core ---
+        const initAudioEngine = () => {
+            if (audioContext) return;
+            try {
+                const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+                audioContext = new AC();
+                analyser = audioContext!.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.85;
+                audioDestination = audioContext!.createMediaStreamDestination();
                 
-                if (statusText) {
-                    statusText.textContent = `СЕМЯ ЗАГРУЖЕНО [${Math.round(studioAudio.duration)}с]`;
-                    statusText.classList.add('text-cyber-accent');
-                    statusText.classList.remove('text-cyber-muted');
-                }
-            };
-            studioAudio.onerror = (err) => {
-                clearTimeout(fallbackTimeout);
-                console.error('Audio load error:', err);
-                hasLoadedFile = true;
-                btnRecord.disabled = false;
-                if (statusText) statusText.textContent = 'ОШИБКА ДЕКОДЕРА [ERR]';
-                
-                // Show modal on ACTUAL error, not just 0-byte report
-                if (errorModal) {
-                    errorModal.classList.remove('hidden');
-                    setTimeout(() => errorModal.classList.add('opacity-100'), 50);
-                }
-            };
-            studioAudio.load();
+                // Keep context alive
+                const osc = audioContext!.createOscillator();
+                const gain = audioContext!.createGain();
+                gain.gain.value = 0.00001;
+                osc.connect(gain); gain.connect(audioContext!.destination);
+                osc.start();
+                console.log('[Audio] Engine Ready');
+            } catch(e) { console.error('[Audio] Init Failed', e); }
         };
 
-        // Aggressive MIME sniffing
-        const fileName = file.name.toLowerCase();
-        let mimeType = file.type || 'audio/mpeg';
-        if (fileName.endsWith('.mp3')) mimeType = 'audio/mpeg';
-        if (fileName.endsWith('.wav')) mimeType = 'audio/wav';
-        if (fileName.endsWith('.m4a')) mimeType = 'audio/mp4';
-        if (fileName.endsWith('.ogg')) mimeType = 'audio/ogg';
-
-        // Use blob URL for everything
-        const url = URL.createObjectURL(file);
-        loadAudio(url, mimeType);
-    });
-
-
-
-
-
-
-    // 3. The Visualizer Loop
-    let time = 0;
-    
-    const gridCanvas = document.createElement('canvas');
-    gridCanvas.width = cw;
-    gridCanvas.height = ch;
-    const gctx = gridCanvas.getContext('2d');
-    if (gctx) {
-        gctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
-        gctx.lineWidth = 1;
-        const gridSize = 40;
-        gctx.beginPath();
-        for(let x=0; x<cw; x+=gridSize) { gctx.moveTo(x,0); gctx.lineTo(x,ch); }
-        for(let y=0; y<ch; y+=gridSize) { gctx.moveTo(0,y); gctx.lineTo(cw,y); }
-        gctx.stroke();
-    }
-
-    const drawFrame = () => {
-        if (!ctx) return;
-        requestAnimationFrame(drawFrame);
-
-        ctx.fillStyle = '#000000'; 
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.drawImage(gridCanvas, 0, 0);
-        time += 0.015;
-
-        const isDormant = !hasLoadedFile || studioAudio.paused;
-        const hasAnalyserData = isInitialized;
-        const bufferLength = hasAnalyserData ? analyser.frequencyBinCount : 0;
-        const dataArray = new Uint8Array(bufferLength || 512);
-        let bassSum = 0, vocalsSum = 0, bass = 0, vocals = 0;
-
-        if (!isDormant && hasAnalyserData) {
-            analyser.getByteFrequencyData(dataArray);
-            for(let i = 0; i < 8; i++) bassSum += dataArray[i];
-            for(let i = 5; i < 45; i++) vocalsSum += dataArray[i];
-            bass = bassSum / 8;
-            vocals = vocalsSum / 40;
-        } else if (!isDormant && isAndroid) {
-            // Android: simulate mild reactivity from time-based pulse
-            bass = 20 + Math.sin(time * 3) * 15;
-            vocals = 15 + Math.sin(time * 5) * 10;
-        }
-
-        ctx.save();
-        const baseColor = `rgba(${selectedColor},`; 
-
-        
-        if (isRecording || isDormant) {
-            ctx.font = 'normal 400 20px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.letterSpacing = '8px';
-            ctx.shadowBlur = 0;
-            const message = (studioTextInput?.value || 'СИНДИКАТ').toUpperCase();
-            ctx.fillText(message, cw/2, ch * 0.82);
-        }
-        
-        ctx.translate(cw / 2, ch * 0.48); 
-        const baseScale = (cw * 0.8) / 120;
-        const scale = baseScale + (bass/255) * 0.5; 
-        ctx.scale(scale, scale);
-        
-        const pulse = Math.sin(time) * 2;
-        const breathe = isDormant ? Math.sin(time * 2.5) : 0; 
-
-        const anger = isDormant ? (-14 + breathe) : Math.pow(vocals / 255, 2.5) * 25; 
-        const eyeGlow = 40 + (isDormant ? breathe*3 : Math.pow(vocals/255, 2) * 50);
-        const opacity = '0.9)';
-        const shadowOpacity = '1)';
-
-        ctx.shadowBlur = eyeGlow;
-        ctx.shadowColor = baseColor + shadowOpacity;
-        ctx.fillStyle = baseColor + opacity;
-        
-        ctx.beginPath();
-        if(isDormant) {
-           ctx.moveTo(-50, -45 + pulse); ctx.lineTo(-15, -38 + pulse); ctx.lineTo(-45, -43 + pulse);
-        } else {
-           ctx.moveTo(-55, -50 + pulse); ctx.lineTo(-15, -28 + anger + pulse); ctx.lineTo(-30, -35 + pulse);
-        }
-        ctx.fill();
-        
-        ctx.beginPath();
-        if(isDormant) {
-           ctx.moveTo(50, -45 + pulse); ctx.lineTo(15, -38 + pulse); ctx.lineTo(45, -43 + pulse);
-        } else {
-           ctx.moveTo(55, -50 + pulse); ctx.lineTo(15, -28 + anger + pulse); ctx.lineTo(30, -35 + pulse);
-        }
-        ctx.fill();
-
-        const numBars = 25;
-        const unitWidth = 70 / numBars; 
-        const barWidth = unitWidth * 0.4;
-        const mouthY = 20 + pulse;
-        ctx.shadowBlur = 20;
-        
-        for (let i = 0; i < numBars; i++) {
-            const val = isDormant ? 0 : dataArray[5 + Math.floor(i * (40 / numBars))];
-            const dynamicValue = isDormant ? 0 : Math.pow(val / 255, 3);
-            const taper = 1 - Math.pow(i / numBars, 2);
-            const finalHeight = isDormant ? (2 + (breathe + 1)) * taper + 1 : (dynamicValue * 70 * taper) + 2;
-            const xRight = (i * unitWidth);
-            const xLeft = -(i * unitWidth) - unitWidth;
-            ctx.fillRect(xRight + unitWidth/2, mouthY, barWidth, finalHeight);
-            ctx.fillRect(xLeft + unitWidth/2, mouthY, barWidth, finalHeight);
-            const uHeight = finalHeight * 0.5 + (isDormant ? 1 : 2);
-            ctx.fillRect(xRight + unitWidth/2, mouthY - uHeight - 4, barWidth, uHeight);
-            ctx.fillRect(xLeft + unitWidth/2, mouthY - uHeight - 4, barWidth, uHeight);
-        }
-
-        ctx.restore();
-    };
-    
-    drawFrame();
-
-    // 4. Recording Setup
-    // Takes an optional pre-built audioStream (for Android, where we play first then capture)
-    const setupRecording = (audioStream?: MediaStream) => {
-        const canvasStream = canvas.captureStream(30); 
-        let mixedStream: MediaStream;
-
-        try {
-            let audioTracks: MediaStreamTrack[] = [];
-
-            if (audioStream) {
-                // Android: hot stream already built (audio was playing before captureStream call)
-                audioTracks = audioStream.getAudioTracks();
-                console.log('[Capture] Hot captureStream tracks:', audioTracks.length);
-            } else if (!isAndroid && typeof (studioAudio as any).captureStream === 'function') {
-                const capStream = (studioAudio as any).captureStream() as MediaStream;
-                audioTracks = capStream.getAudioTracks();
-                console.log('[Capture] captureStream tracks:', audioTracks.length);
+        const connectAudioSource = () => {
+            initAudioEngine();
+            if (audioContext && !audioSource) {
+                audioSource = audioContext.createMediaElementSource(studioAudio);
+                audioSource.connect(analyser!);
+                audioSource.connect(audioDestination!);
+                analyser!.connect(audioContext.destination);
+                console.log('[Audio] Source routed to Visualizer and Recorder');
             }
-            
-            // Desktop fallback: Web Audio MediaStreamDestination
-            if (audioTracks.length === 0 && audioContext) {
-                const audioDest = audioContext.createMediaStreamDestination();
-                analyser.connect(audioDest);
-                audioTracks = audioDest.stream.getAudioTracks();
-                console.log('[Capture] Web Audio audioDest tracks:', audioTracks.length);
-            }
+        };
 
-            mixedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
-        } catch(e) {
-           console.warn('Could not merge audio stream, falling back to canvas only', e);
-           mixedStream = canvasStream;
-        }
-
-        // --- Deep WebM/EBML Optimizer (for Cues & Seekability) ---
+        // --- EBML Patching (Seekability) ---
         const fixWebmSeekable = async (blob: Blob) => {
             try {
                 const decoder = new Decoder();
                 const reader = new Reader();
                 (reader as any).logging = false;
-                (reader as any).drop_default_duration = false;
-
                 const buffer = await blob.arrayBuffer();
                 const elms = decoder.decode(buffer);
-                elms.forEach((elm) => reader.read(elm));
+                elms.forEach(e => reader.read(e));
                 reader.stop();
-
                 const refinedMetadataBuf = tools.makeMetadataSeekable(reader.metadatas, reader.duration, reader.cues);
-                const body = buffer.slice(reader.metadataSize);
-                return new Blob([refinedMetadataBuf, body], { type: blob.type });
-            } catch (e) {
-                console.error('[WebM-Fix] Seekability patch failed', e);
-                return blob;
+                return new Blob([refinedMetadataBuf, buffer.slice(reader.metadataSize)], { type: blob.type });
+            } catch(e) { console.error('[EBML] Fix failed', e); return blob; }
+        };
+
+        // --- Recording Session ---
+        const setupRecorder = (androidStream?: MediaStream) => {
+            const canvasStream = canvas.captureStream(30);
+            let audioTracks: MediaStreamTrack[] = [];
+
+            if (audioDestination) {
+                audioTracks = audioDestination.stream.getAudioTracks();
+                console.log('[Recorder] Web Audio tracks:', audioTracks.length);
+            }
+            if (audioTracks.length === 0 && androidStream) {
+                audioTracks = androidStream.getAudioTracks();
+                console.log('[Recorder] Android fallback tracks:', audioTracks.length);
+            }
+
+            const mixedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
+            const candidates = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+            let mime = 'video/webm';
+            for (const c of candidates) { if (MediaRecorder.isTypeSupported(c)) { mime = c; break; } }
+            selectedMimeType = mime;
+
+            mediaRecorder = new MediaRecorder(mixedStream, { 
+                mimeType: mime, videoBitsPerSecond: isAndroid ? 1200000 : 2500000 
+            });
+
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = async () => {
+                if (recordedChunks.length === 0) return;
+                let blob = new Blob(recordedChunks, { type: selectedMimeType });
+                recordedChunks = [];
+                if (selectedMimeType.includes('webm')) blob = await fixWebmSeekable(blob);
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `SYNDICATE_STUDIO_${Date.now()}.${selectedMimeType.includes('mp4') ? 'mp4' : 'webm'}`;
+                a.click();
+                
+                if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
+                if(stopLayer) { stopLayer.classList.add('hidden'); stopLayer.style.opacity = '0'; }
+                if(statusText) statusText.textContent = 'ГОТОВО';
+                isRecording = false;
+            };
+        };
+
+        const executeStop = () => {
+            if (isRecording && mediaRecorder?.state === 'recording') {
+                studioAudio.pause();
+                mediaRecorder.stop();
             }
         };
 
-        let mimeType = 'video/webm';
-        let extension = 'webm';
-        const candidateMimeTypes = [
-            'video/webm;codecs=vp8',     // Priority 1: VP8 WebM (Compatible with common mobile Opus players)
-            'video/webm;codecs=vp9',     // Priority 2: VP9 WebM
-            'video/webm',                 // Catch-all WebM
-            'video/mp4;codecs=avc1',      // MP4 fallback (risky for Opus/Telegram but available)
-            'video/mp4'
-        ];
-        
-        for (const candidate of candidateMimeTypes) {
-            if (MediaRecorder.isTypeSupported(candidate)) {
-                mimeType = candidate;
-                extension = candidate.includes('mp4') ? 'mp4' : 'webm';
-                break;
-            }
-        }
-        selectedMimeType = mimeType;
-
-        mediaRecorder = new MediaRecorder(mixedStream, { 
-            mimeType,
-            videoBitsPerSecond: isAndroid ? 1200000 : 2500000
+        // --- Listeners ---
+        audioUpload.addEventListener('change', (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            studioAudio.crossOrigin = "anonymous";
+            studioAudio.src = URL.createObjectURL(file);
+            studioAudio.load();
+            studioAudio.oncanplay = () => {
+                hasLoadedFile = true;
+                btnRecord.disabled = false;
+                if (statusText) statusText.textContent = 'СЕМЯ ЗАГРУЖЕНО';
+                connectAudioSource();
+            };
+            studioAudio.onerror = () => errorModal?.classList.remove('hidden');
         });
 
-        mediaRecorder.onerror = (event) => {
-            console.error('Encoder Error:', event);
-            if(statusText) statusText.textContent = 'ОШИБКА ДВИЖКА ЗАПИСИ';
-        };
-
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) recordedChunks.push(e.data);
-        };
-
-        mediaRecorder.onstop = async () => {
-            if (recordedChunks.length === 0) return;
-            recordDuration = performance.now() - recordStartTime;
-            let blob = new Blob(recordedChunks, { type: mimeType });
-            recordedChunks = [];
-
-            // Deep WebM Re-muxing (Essential for Telegram Stories seekability)
-            if (selectedMimeType.includes('webm')) {
-                console.log(`[Re-mux] Starting EBML analysis: ${Math.round(recordDuration)}ms`);
-                blob = await fixWebmSeekable(blob);
-                console.log(`[Re-mux] Success: Seekable WebM generated with Cues`);
-            } else {
-                console.log('[Recorder] Non-WebM format, skipping EBML refinement');
-            }
-
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            document.body.appendChild(a);
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `SYNDICATE_STUDIO_${Date.now()}.${extension}`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
-            if(stopLayer) { stopLayer.classList.add('hidden'); stopLayer.style.opacity = '0'; stopLayer.style.pointerEvents = 'none'; }
-            if(statusText) {
-                const warnMsg = extension === 'webm' ? ' (НУЖНА КОНВЕРТАЦИЯ ДЛЯ IPHONE)' : '';
-                statusText.textContent = `СКАЧАНО .${extension.toUpperCase()}${warnMsg}`;
-                statusText.classList.remove('text-cyber-muted', 'animate-pulse');
-                statusText.classList.add('text-cyber-accent');
-            }
-            isRecording = false;
-        };
-    };
-
-    // 5. Action Triggers
-    const stopRecording = () => {
-        if (isRecording && mediaRecorder?.state === 'recording') {
-            studioAudio.pause();
-            mediaRecorder.stop();
-        }
-    };
-
-    btnRecord.addEventListener('click', async () => {
-        if (!hasLoadedFile) return;
-        
-        try {
-            studioAudio.currentTime = 0;
-            studioAudio.onended = () => { if (isRecording) stopRecording(); };
-
-            if(uiLayer) { uiLayer.style.opacity = '0'; uiLayer.style.pointerEvents = 'none'; }
-            if(stopLayer) {
-                stopLayer.classList.remove('hidden');
-                stopLayer.style.pointerEvents = 'auto';
-                setTimeout(() => stopLayer.style.opacity = '1', 100);
-            }
-
-            if (audioContext?.state === 'suspended') {
-                await audioContext.resume();
-                console.log('AudioContext: Resumed by gesture');
-            }
-
-            if (isAndroid) {
-                // ANDROID: play first so the audio stream is HOT, then captureStream
-                try {
-                    await studioAudio.play();
-                } catch (playErr: any) {
-                    console.error('Android Play Error:', playErr);
-                    if (statusText) statusText.textContent = `ОШИБКА ДЕКОДЕРА: ${playErr.name || 'Failure'}`;
-                    throw playErr;
-                }
-                
-                // Give the native decoder 150ms to open the audio output pipe
-                await new Promise(r => setTimeout(r, 150));
-                
-                // captureStream() now sees an active audio track
-                const hotStream = typeof (studioAudio as any).captureStream === 'function'
-                    ? (studioAudio as any).captureStream() as MediaStream
-                    : undefined;
-                setupRecording(hotStream);
-            } else {
+        btnRecord.addEventListener('click', async () => {
+            if (!hasLoadedFile) return;
+            try {
+                if (audioContext?.state === 'suspended') await audioContext.resume();
+                studioAudio.currentTime = 0;
                 await studioAudio.play();
-                setupRecording();
+                
+                if (isAndroid) await new Promise(r => setTimeout(r, 150));
+                
+                setupRecorder();
+                if (!mediaRecorder) return;
+
+                if(uiLayer) { uiLayer.style.opacity = '0'; uiLayer.style.pointerEvents = 'none'; }
+                if(stopLayer) { stopLayer.classList.remove('hidden'); setTimeout(() => stopLayer.style.opacity = '1', 50); }
+                
+                recordedChunks = [];
+                recordStartTime = performance.now();
+                mediaRecorder.start(1000);
+                isRecording = true;
+                if(statusText) statusText.textContent = 'ЗАПИСЬ...';
+            } catch (err) { console.error('Record Start Fail:', err); }
+        });
+
+        btnStop.addEventListener('click', executeStop);
+        if (closeModal) closeModal.onclick = () => errorModal?.classList.add('hidden');
+
+        // --- Draw Loop ---
+        const ctx = canvas.getContext('2d');
+        const cw = 720, ch = 1280;
+        canvas.width = cw; canvas.height = ch;
+        
+        const gridCanvas = document.createElement('canvas');
+        gridCanvas.width = cw; gridCanvas.height = ch;
+        const gctx = gridCanvas.getContext('2d');
+        if (gctx) {
+            gctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
+            gctx.lineWidth = 1;
+            for(let x=0; x<cw; x+=40) { gctx.moveTo(x,0); gctx.lineTo(x,ch); }
+            for(let y=0; y<ch; y+=40) { gctx.moveTo(0,y); gctx.lineTo(cw,y); }
+            gctx.stroke();
+        }
+
+        let time = 0;
+        const draw = () => {
+            if (!ctx) return;
+            requestAnimationFrame(draw);
+            ctx.fillStyle = '#000000'; ctx.fillRect(0,0,cw,ch);
+            ctx.drawImage(gridCanvas, 0,0);
+            time += 0.015;
+
+            const isDormant = !hasLoadedFile || studioAudio.paused;
+            const data = new Uint8Array(analyser ? analyser.frequencyBinCount : 512);
+            let bass = 0, vocals = 0;
+
+            if (!isDormant && analyser) {
+                analyser.getByteFrequencyData(data);
+                let bSum = 0, vSum = 0;
+                for(let i=0; i<8; i++) bSum += data[i];
+                for(let i=5; i<45; i++) vSum += data[i];
+                bass = bSum/8; vocals = vSum/40;
+            } else {
+                bass = 20 + Math.sin(time*3)*15;
+                vocals = 15 + Math.sin(time*5)*10;
             }
 
+            const pulse = Math.sin(time) * 2;
+            const breathe = isDormant ? Math.sin(time * 2.5) : 0; 
+            const anger = isDormant ? (-14 + breathe) : Math.pow(vocals / 255, 2.5) * 25; 
+            const eyeGlow = 40 + (isDormant ? breathe*3 : Math.pow(vocals/255, 2) * 50);
 
-            if (!mediaRecorder) throw new Error('MediaRecorder not initialized');
+            ctx.save();
+            const msg = (studioTextInput?.value || 'СИНДИКАТ').toUpperCase();
+            ctx.font = '20px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.letterSpacing = '8px'; ctx.fillText(msg, cw/2, ch*0.82);
 
-            recordStartTime = performance.now();
-            setTimeout(() => {
-                if (mediaRecorder && mediaRecorder.state === 'inactive') {
-                    mediaRecorder.start(1000); 
-                    isRecording = true;
-                    if(statusText) statusText.textContent = 'ИДЕТ ЗАПИСЬ...';
-                }
-            }, 200);
-
-        } catch (error: any) {
-            console.error('Recording Start Error:', error);
-            let errorMsg = 'ОШИБКА ЗАПИСИ';
-            if (error.name === 'NotAllowedError') errorMsg = 'БРАУЗЕР БЛОКИРУЕТ ЗВУК';
-            if (error.name === 'SecurityError') errorMsg = 'ОШИБКА БЕЗОПАСНОСТИ';
-            if (statusText) statusText.textContent = errorMsg;
-            if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
-        }
+            ctx.translate(cw/2, ch*0.48);
+            const scale = (cw*0.8/120) + (bass/255)*0.5;
+            ctx.scale(scale, scale);
+            
+            ctx.shadowBlur = eyeGlow;
+            ctx.shadowColor = `rgba(${selectedColor}, 1)`;
+            ctx.fillStyle = `rgba(${selectedColor}, 0.9)`;
+            
+            // Eyes
+            ctx.beginPath();
+            if(isDormant) {
+                ctx.moveTo(-50, -45 + pulse); ctx.lineTo(-15, -38 + pulse); ctx.lineTo(-45, -43 + pulse);
+            } else {
+                ctx.moveTo(-55, -50 + pulse); ctx.lineTo(-15, -28 + anger + pulse); ctx.lineTo(-30, -35 + pulse);
+            }
+            ctx.fill();
+            
+            ctx.beginPath();
+            if(isDormant) {
+                ctx.moveTo(50, -45 + pulse); ctx.lineTo(15, -38 + pulse); ctx.lineTo(45, -43 + pulse);
+            } else {
+                ctx.moveTo(55, -50 + pulse); ctx.lineTo(15, -28 + anger + pulse); ctx.lineTo(30, -35 + pulse);
+            }
+            ctx.fill();
+            
+            // Mouth
+            const numBars = 25;
+            const mouthY = 20 + pulse;
+            for (let i = 0; i < numBars; i++) {
+                const val = isDormant ? 0 : data[5 + Math.floor(i * (40/numBars))];
+                const taper = 1 - Math.pow(i/numBars, 2);
+                const h = isDormant ? (2+breathe)*taper+1 : (Math.pow(val/255, 3)*70*taper)+2;
+                const xRight = i*2.8; const xLeft = -i*2.8 - 2.8;
+                ctx.fillRect(xRight + 1.4, mouthY, 1.5, h);
+                ctx.fillRect(xLeft + 1.4, mouthY, 1.5, h);
+                const uH = h*0.5 + (isDormant?1:2);
+                ctx.fillRect(xRight + 1.4, mouthY - uH - 4, 1.5, uH);
+                ctx.fillRect(xLeft + 1.4, mouthY - uH - 4, 1.5, uH);
+            }
+            ctx.restore();
+        };
+        draw();
     });
-
-    btnStop.addEventListener('click', stopRecording);
-});
 </script>
 
 <style>
