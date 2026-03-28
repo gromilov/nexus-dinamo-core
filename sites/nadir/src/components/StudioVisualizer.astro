@@ -165,22 +165,30 @@
 
         // --- Audio Engine Core ---
         const initAudioEngine = () => {
-            if (audioContext) return;
+            // Re-init only if context is truly dead/missing
+            if (audioContext && audioContext.state !== 'closed') return;
+            
             try {
                 const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-                audioContext = new AC();
+                // Force standard sampleRate to avoid device/renderer mismatches
+                audioContext = new AC({ sampleRate: 44100 });
+                
+                audioContext.onstatechange = () => {
+                    console.log(`[AudioContext] State: ${audioContext?.state}`);
+                };
+
                 analyser = audioContext!.createAnalyser();
                 analyser.fftSize = 512;
                 analyser.smoothingTimeConstant = 0.85;
                 audioDestination = audioContext!.createMediaStreamDestination();
                 
-                // Keep context alive
+                // Keep context alive with a silent heartbeat
                 const osc = audioContext!.createOscillator();
                 const gain = audioContext!.createGain();
                 gain.gain.value = 0.00001;
                 osc.connect(gain); gain.connect(audioContext!.destination);
                 osc.start();
-                console.log('[Audio] Engine Ready');
+                console.log('[Audio] Engine Ready (44.1kHz)');
             } catch(e) { console.error('[Audio] Init Failed', e); }
         };
 
