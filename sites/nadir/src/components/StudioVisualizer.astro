@@ -180,16 +180,19 @@
 
         // --- Audio Engine Core ---
         const initAudioEngine = () => {
-            // Re-init only if context is truly dead/missing
+            // If already exists and running, we are fine
             if (audioContext && audioContext.state !== 'closed') return;
             
             try {
                 const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-                // Let the browser/OS choose the native sampleRate to avoid hardware errors
-                audioContext = new AC();
+                // 'playback' hint is much more stable on desktop hardware
+                audioContext = new AC({ latencyHint: 'playback' }) as AudioContext;
                 
                 audioContext.onstatechange = () => {
                     console.log(`[AudioContext] State: ${audioContext?.state}`);
+                    if (audioContext?.state === 'running') {
+                        hideErrorModal(); // Hide modal if it was shown due to error
+                    }
                 };
 
                 analyser = audioContext.createAnalyser();
@@ -202,13 +205,22 @@
                 gain.gain.value = 0.00001;
                 osc.connect(gain); gain.connect(audioContext.destination);
                 osc.start();
-                console.log('[Audio] Engine Ready (48kHz)');
-            } catch(e) { console.error('[Audio] Init Failed', e); }
+                console.log('[Audio] Engine Ready (Playback Mode)');
+            } catch(e) { 
+                console.error('[Audio] Init Failed - Resetting', e);
+                if (audioContext) { 
+                    try { audioContext.close(); } catch(err) {}
+                    audioContext = null; 
+                }
+            }
         };
 
         const connectAudioSource = () => {
             initAudioEngine();
-            if (audioContext && !audioSource) {
+            // If init failed, don't try to connect
+            if (!audioContext || !analyser) return;
+
+            if (!audioSource) {
                 audioSource = audioContext.createMediaElementSource(studioAudio);
                 audioSource.connect(analyser!);
                 analyser!.connect(audioContext.destination);
