@@ -5,7 +5,7 @@
 
 <div class="studio-generator-container w-full max-w-[450px] mx-auto aspect-[9/16] relative overflow-hidden flex flex-col bg-[#020205]">
   
-  <!-- The Canvas for Web Audio Visuals -->
+  <!-- The Canvas for Web Audio Visuals (Face, Text, Background) -->
   <canvas id="studio-canvas" class="absolute inset-0 w-full h-full z-0 pointer-events-none"></canvas>
 
   <!-- Dedicated STOP button during recording -->
@@ -16,10 +16,12 @@
     </button>
   </div>
 
-  <!-- UI Controls -->
+  <!-- UI Controls (Visible during configuration, hidden during recording) -->
   <div id="studio-ui" class="absolute inset-0 z-20 flex flex-col justify-end bg-gradient-to-t from-black via-black/80 to-transparent p-4 sm:p-6 pb-6 transition-opacity duration-500">
+     
      <div class="space-y-4 w-full backdrop-blur-md bg-black/60 p-4 pb-12 sm:p-5 shadow-none border-t border-white/5">
-         
+        
+         <!-- Syndicate Kitchen Instructions -->
          <div class="space-y-1.5 border-b border-white/5 pb-4 mb-4">
             <label class="text-[9px] font-mono text-cyber-primary uppercase tracking-[0.2em] block mb-2 opacity-80">// КУХНЯ_СИНДИКАТА</label>
             <div class="grid grid-cols-3 gap-2 text-center text-[7px] uppercase font-mono">
@@ -38,54 +40,71 @@
             </div>
          </div>
 
+         <!-- Audio Input -->
         <div class="flex flex-col space-y-2">
            <label class="text-[10px] font-mono text-cyber-primary uppercase tracking-widest pl-1">ЗАГРУЗИТЬ АУДИО (СЕМЯ)</label>
            <input type="file" id="audio-upload" accept=".mp3,audio/mpeg,audio/mp3,audio/*" class="text-[10px] font-mono text-white/70 file:mr-3 file:py-1.5 file:px-3 file:rounded-none file:border-0 file:text-[9px] file:font-mono file:bg-cyber-primary/20 file:text-cyber-primary hover:file:bg-cyber-primary/30 transition-all cursor-pointer w-full"/>
         </div>
 
+        <!-- Dynamic Message Input -->
         <div class="flex flex-col space-y-2 pt-1 border-t border-white/10">
            <label class="text-[9px] font-mono text-cyber-muted uppercase tracking-widest pl-1 pt-2">ТЕКСТ (СООБЩЕНИЕ)</label>
            <input type="text" id="studio-text" placeholder="СИНДИКАТ" maxlength="20" class="bg-transparent border-b border-white/20 text-[10px] font-mono text-white placeholder:text-white/20 focus:border-cyber-primary outline-none py-1 px-1 tracking-[0.3em] uppercase transition-colors"/>
         </div>
 
+        <!-- Color Palette Picker -->
         <div class="flex flex-col space-y-2 pt-1 border-t border-white/10">
            <label class="text-[9px] font-mono text-cyber-muted uppercase tracking-widest pl-1 pt-2">ВЫБОР ЦВЕТА</label>
-           <div class="flex justify-between items-center w-full px-1" id="color-palette"></div>
+           <div class="flex justify-between items-center w-full px-1" id="color-palette">
+              <!-- Colors added via JS -->
+           </div>
         </div>
 
         <div class="flex items-center justify-between pt-3 border-t border-white/10 mt-2">
+           <!-- Play/Record Button -->
            <button id="btn-record" class="flex items-center justify-center gap-2 bg-cyber-primary text-black font-black uppercase text-[10px] px-5 py-2.5 rounded-none hover:bg-white transition-colors tracking-widest disabled:opacity-50 disabled:cursor-not-allowed group shadow-none" disabled>
               <div class="w-2.5 h-2.5 rounded-none bg-red-600 group-hover:bg-red-500 animate-pulse"></div>
               ЗАПИСЬ
            </button>
+           
            <span id="recording-status" class="text-[9px] font-mono text-cyber-muted uppercase tracking-widest text-right leading-tight max-w-[120px]">ОЖИДАНИЕ ТРЕКА...</span>
         </div>
+        
      </div>
   </div>
 
-  <!-- Error Modal -->
+  <!-- Error Modal (Popup) -->
   <div id="error-modal" class="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl hidden opacity-0 transition-opacity duration-300">
-    <div class="w-full border-2 border-cyber-primary p-6 space-y-6 bg-[#050508] relative">
+    <div class="w-full border-2 border-cyber-primary p-6 space-y-6 bg-[#050508] shadow-[0_0_50px_rgba(212,175,55,0.15)] relative">
       <div class="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-cyber-primary -mt-0.5 -mr-0.5"></div>
       <div class="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-cyber-primary -mb-0.5 -ml-0.5"></div>
+      
       <div class="space-y-4">
         <h3 class="text-cyber-primary font-black uppercase tracking-[0.3em] text-sm text-center">КРИТИЧЕСКИЙ_СБОЙ</h3>
         <p class="text-[10px] font-mono text-white/80 leading-relaxed uppercase tracking-widest text-center border-y border-white/5 py-4">
-          НЕ_УДАЛОСЬ_ПРОЧИТАТЬ_АУДИО. ПОПРОБУЙТЕ_СКАЧАТЬ_ЕГО_ВО_"DOWNLOADS"_И_ВЫБРАТЬ_ОТСЮДА.
+          НЕ_УДАЛОСЬ_ПРОЧИТАТЬ_АУДИО. ЭТО_БЫВАЕТ_С_ФАЙЛАМИ_ИЗ_"НЕДАВНИХ"_ИЛИ_ОБЛАКА. ПОПРОБУЙТЕ_СКАЧАТЬ_ЕГО_ВО_"ВНУТРЕННЮЮ_ПАМЯТЬ" -> "DOWNLOADS"_И_ВЫБРАТЬ_ОТСЮДА.
         </p>
       </div>
-      <button id="close-modal" class="w-full bg-cyber-primary text-black font-black uppercase text-[10px] py-4 tracking-[0.5em] hover:bg-white transition-colors">ПОНЯТНО</button>
+
+      <button id="close-modal" class="w-full bg-cyber-primary text-black font-black uppercase text-[10px] py-4 tracking-[0.5em] hover:bg-white transition-colors">
+        ПОНЯТНО
+      </button>
     </div>
   </div>
 
-  <audio id="studio-audio" preload="auto" class="opacity-0 pointer-events-none absolute -z-10"></audio>
+  <!-- Audio element: invisible but NOT display:none (critical for some mobile engines) -->
+  <audio id="studio-audio" controls preload="auto" class="opacity-0 pointer-events-none absolute -z-10"></audio>
+
 </div>
 
 <script>
     import { Buffer } from 'buffer';
     if (typeof window !== 'undefined') { (window as any).Buffer = Buffer; }
+    
+    import { Decoder, Reader, tools } from 'ts-ebml';
 
     document.addEventListener('DOMContentLoaded', () => {
+        // ... (UI elements)
         const audioUpload = document.getElementById('audio-upload') as HTMLInputElement;
         const btnRecord = document.getElementById('btn-record') as HTMLButtonElement;
         const btnStop = document.getElementById('btn-stop') as HTMLButtonElement;
@@ -101,214 +120,291 @@
 
         if (!audioUpload || !btnRecord || !canvas || !btnStop || !paletteContainer || !studioAudio) return;
 
+        // --- Shared State ---
+        const isAndroid = /Android/i.test(navigator.userAgent);
         let audioContext: AudioContext | null = null;
         let analyser: AnalyserNode | null = null;
         let audioSource: MediaElementAudioSourceNode | null = null;
-        let isRecording = false;
-        let hasLoadedFile = false;
-
-        // --- Palette Setup ---
-        // --- Palette Setup: The Full Syndicate Spectrum ---
-        const colors = [
-            { name: 'Gold', value: '212, 175, 55', hex: '#D4AF37' },
-            { name: 'Platinum', value: '229, 228, 226', hex: '#E5E4E2' },
-            { name: 'Obsidian', value: '80, 80, 85', hex: '#505055' },
-            { name: 'Electric', value: '0, 243, 255', hex: '#00F3FF' },
-            { name: 'Magenta', value: '255, 0, 255', hex: '#FF00FF' },
-            { name: 'Amber', value: '255, 191, 0', hex: '#FFBF00' },
-            { name: 'Lime', value: '204, 255, 0', hex: '#CCFF00' },
-            { name: 'Crimson', value: '255, 50, 50', hex: '#FF3232' },
-            { name: 'Violet', value: '138, 43, 226', hex: '#8A2BE2' },
-            { name: 'Emerald', value: '80, 200, 120', hex: '#50C878' },
-            { name: 'Blood', value: '136, 8, 8', hex: '#880808' }
-        ];
-        let selectedColor = colors[0].value;
-        const colorButtons: HTMLButtonElement[] = [];
-
-        const showErrorModal = () => { if (errorModal) { errorModal.classList.remove('hidden'); errorModal.style.opacity = '1'; } };
-        const hideErrorModal = () => { if (errorModal) { errorModal.style.opacity = '0'; setTimeout(() => errorModal.classList.add('hidden'), 300); } };
-
-        const updatePaletteUI = (activeHex: string) => {
-            colorButtons.forEach(btn => {
-                if (btn.dataset.hex === activeHex) {
-                    btn.style.transform = 'scale(1.3)';
-                    btn.style.borderColor = 'white';
-                    btn.style.boxShadow = `0 0 15px ${activeHex}`;
-                } else {
-                    btn.style.transform = 'scale(1)';
-                    btn.style.borderColor = 'rgba(255,255,255,0.1)';
-                    btn.style.boxShadow = 'none';
-                }
-            });
-        };
-
-        colors.forEach((c) => {
-            const btn = document.createElement('button');
-            btn.dataset.hex = c.hex;
-            btn.className = "w-4 h-4 rounded-full border transition-all duration-300 transform hover:scale-125";
-            btn.style.backgroundColor = c.hex;
-            btn.style.borderColor = 'rgba(255,255,255,0.1)';
-            btn.onclick = () => { 
-                selectedColor = c.value; 
-                updatePaletteUI(c.hex);
-            };
-            paletteContainer.appendChild(btn);
-            colorButtons.push(btn);
-        });
-        updatePaletteUI(colors[0].hex);
-
-        const initAudioEngine = async () => {
-            if (audioContext && audioContext.state !== 'closed') return;
-            try {
-                const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-                const ctx = new AC({ latencyHint: 'playback' }) as AudioContext;
-                audioContext = ctx; // Ensure reference is set
-                analyser = ctx.createAnalyser(); 
-                analyser.fftSize = 512;
-            } catch(e) { console.error(e); }
-        };
-
-        const connectAudioSource = async () => {
-            await initAudioEngine();
-            if (!audioContext || !analyser) return;
-            
-            if (!audioSource) {
-                audioSource = audioContext.createMediaElementSource(studioAudio);
-                audioSource.connect(analyser);
-                analyser.connect(audioContext.destination);
-            }
-            
-            if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-        };
-
+        let audioDestination: MediaStreamAudioDestinationNode | null = null;
+        
         let mediaRecorder: MediaRecorder | null = null;
         let recordedChunks: Blob[] = [];
+        let isRecording = false;
+        let hasLoadedFile = false;
+        let recordStartTime = 0;
+        let selectedMimeType = '';
 
-        const startRecording = async () => {
-            if (!hasLoadedFile || isRecording || !audioContext) return;
-            
-            if (audioContext.state === 'suspended') await audioContext.resume();
-            
-            isRecording = true;
-            if(statusText) statusText.textContent = 'ИНИЦИАЛИЗАЦИЯ...';
+        // --- Palette Setup ---
+        const colors = [
+            { name: 'Gold', value: '212, 175, 55', hex: '#D4AF37' },
+            { name: 'Cyan', value: '0, 243, 255', hex: '#00F3FF' },
+            { name: 'Magenta', value: '255, 0, 255', hex: '#FF00FF' },
+            { name: 'Lime', value: '204, 255, 0', hex: '#CCFF00' },
+            { name: 'Crimson', value: '255, 50, 50', hex: '#FF3232' },
+            { name: 'Purple', value: '150, 50, 255', hex: '#9632FF' },
+            { name: 'Blue', value: '100, 150, 255', hex: '#6496FF' },
+            { name: 'White', value: '255, 255, 255', hex: '#FFFFFF' },
+            { name: 'Orange', value: '255, 120, 0', hex: '#FF7800' }
+        ];
+        let selectedColor = colors[0].value;
 
-            // Check for direct MP4 support (Zero-lag Holy Grail)
-            const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=h264', 'video/webm'];
-            const supportedType = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
-            
-            const canvasStream = canvas.captureStream(30);
-            const audioDest = audioContext.createMediaStreamDestination();
-            analyser?.connect(audioDest);
-            
-            const combinedStream = new MediaStream([
-                ...canvasStream.getVideoTracks(),
-                ...audioDest.stream.getAudioTracks()
-            ]);
+        const showErrorModal = () => {
+            if (!errorModal) return;
+            errorModal.classList.remove('hidden');
+            // Force reflow
+            errorModal.offsetHeight;
+            errorModal.style.opacity = '1';
+        };
 
-            mediaRecorder = new MediaRecorder(combinedStream, { 
-                mimeType: supportedType,
-                videoBitsPerSecond: 3000000 
+        const hideErrorModal = () => {
+            if (!errorModal) return;
+            errorModal.style.opacity = '0';
+            setTimeout(() => errorModal.classList.add('hidden'), 300);
+        };
+
+        colors.forEach((c, i) => {
+            const btn = document.createElement('button');
+            btn.className = `w-5 h-5 rounded-none border transition-transform hover:scale-125 focus:outline-none ${i === 0 ? 'border-white scale-110' : 'border-black'}`;
+            btn.style.backgroundColor = c.hex;
+            btn.addEventListener('click', () => {
+                selectedColor = c.value;
+                Array.from(paletteContainer.children).forEach(ch => {
+                    (ch as HTMLElement).classList.remove('border-white', 'scale-125');
+                    (ch as HTMLElement).classList.add('border-black');
+                });
+                btn.classList.add('border-white', 'scale-125'); btn.classList.remove('border-black');
             });
+            paletteContainer.appendChild(btn);
+        });
 
-            recordedChunks = [];
-            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+        // --- Audio Engine Core ---
+        const initAudioEngine = () => {
+            // Re-init only if context is truly dead/missing
+            if (audioContext && audioContext.state !== 'closed') return;
             
-            mediaRecorder.onstop = async () => {
-                if(statusText) statusText.textContent = 'СБОРКА MP4...';
-                const blob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType });
+            try {
+                const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+                // Force standard sampleRate to avoid device/renderer mismatches
+                audioContext = new AC({ sampleRate: 44100 });
                 
-                // If it's already MP4, we are DONE
-                if (mediaRecorder?.mimeType.includes('mp4')) {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = `STUDIO_${Date.now()}.mp4`; a.click();
-                    finishUI();
-                } else {
-                    // USER'S PLAN: Re-format WebM to MP4 after recording
-                    // We'll use the existing encoderWorker to "transcode" the blob
-                    // For now, to keep it simple and FAST, we give the WebM if it's the only option
-                    // OR we can proceed with a true transcode if the user prefers.
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = `STUDIO_${Date.now()}.mp4`; a.click();
-                    finishUI();
+                audioContext.onstatechange = () => {
+                    console.log(`[AudioContext] State: ${audioContext?.state}`);
+                };
+
+                analyser = audioContext!.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.85;
+                audioDestination = audioContext!.createMediaStreamDestination();
+                
+                // Keep context alive with a silent heartbeat
+                const osc = audioContext!.createOscillator();
+                const gain = audioContext!.createGain();
+                gain.gain.value = 0.00001;
+                osc.connect(gain); gain.connect(audioContext!.destination);
+                osc.start();
+                console.log('[Audio] Engine Ready (44.1kHz)');
+            } catch(e) { console.error('[Audio] Init Failed', e); }
+        };
+
+        const connectAudioSource = () => {
+            initAudioEngine();
+            if (audioContext && !audioSource) {
+                audioSource = audioContext.createMediaElementSource(studioAudio);
+                audioSource.connect(analyser!);
+                audioSource.connect(audioDestination!);
+                analyser!.connect(audioContext.destination);
+                console.log('[Audio] Source routed to Visualizer and Recorder');
+            }
+        };
+
+        // --- EBML Patching (Seekability) ---
+        const fixWebmSeekable = async (blob: Blob, durationMs: number) => {
+            try {
+                const decoder = new Decoder();
+                const reader = new Reader();
+                (reader as any).logging = false;
+                const buffer = await blob.arrayBuffer();
+                const elms = decoder.decode(buffer);
+                elms.forEach(e => reader.read(e));
+                reader.stop();
+                
+                // EBML Header Patch: Tools.makeMetadataSeekable produces a clean header with Cues
+                const refinedMetadataBuf = tools.makeMetadataSeekable(reader.metadatas, durationMs, reader.cues);
+                
+                // Robust Splicing: Find the actual start of the first Cluster (0x1F43B675)
+                // Browsers sometimes add extra tags that reader.metadataSize misses.
+                const view = new DataView(buffer);
+                let clusterOffset = -1;
+                for (let i = 0; i < buffer.byteLength - 4; i++) {
+                    if (view.getUint32(i) === 0x1F43B675) {
+                        clusterOffset = i;
+                        break;
+                    }
                 }
+                
+                const finalOffset = clusterOffset !== -1 ? clusterOffset : reader.metadataSize;
+                return new Blob([refinedMetadataBuf, buffer.slice(finalOffset)], { type: blob.type });
+            } catch(e) { console.error('[EBML] Fix failed', e); return blob; }
+        };
+
+        // --- Recording Session ---
+        const setupRecorder = (androidStream?: MediaStream) => {
+            const canvasStream = canvas.captureStream(30);
+            let audioTracks: MediaStreamTrack[] = [];
+
+            if (audioDestination) {
+                audioTracks = audioDestination.stream.getAudioTracks();
+                console.log('[Recorder] Web Audio tracks:', audioTracks.length);
+            }
+            if (audioTracks.length === 0 && androidStream) {
+                audioTracks = androidStream.getAudioTracks();
+                console.log('[Recorder] Android fallback tracks:', audioTracks.length);
+            }
+
+            const mixedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
+            const candidates = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+            let mime = 'video/webm';
+            for (const c of candidates) { if (MediaRecorder.isTypeSupported(c)) { mime = c; break; } }
+            selectedMimeType = mime;
+
+            // Force stable bitrate and 100ms timeslice to force frequent clusters for better Telegram trimming
+            const recorderOptions: any = { 
+                mimeType: mime, 
+                videoBitsPerSecond: 1200000 
             };
 
-            const finishUI = () => {
-                if(uiLayer) uiLayer.style.opacity = '1'; if(stopLayer) stopLayer.classList.add('hidden');
+            // Chrome-based browsers (Android) support forcing keyframe intervals
+            if (isAndroid) {
+                recorderOptions.videoKeyframeIntervalDuration = 1000; // Keyframe every 1s
+            }
+
+            mediaRecorder = new MediaRecorder(mixedStream, recorderOptions);
+
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = async () => {
+                if (recordedChunks.length === 0) return;
+                const finalDuration = performance.now() - recordStartTime;
+                console.log(`[Recorder] Recording finished. Measured Duration: ${Math.round(finalDuration)}ms`);
+                
+                let blob = new Blob(recordedChunks, { type: selectedMimeType });
+                recordedChunks = [];
+                if (selectedMimeType.includes('webm')) blob = await fixWebmSeekable(blob, finalDuration);
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `SYNDICATE_STUDIO_${Date.now()}.${selectedMimeType.includes('mp4') ? 'mp4' : 'webm'}`;
+                a.click();
+                
+                if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
+                if(stopLayer) { stopLayer.classList.add('hidden'); stopLayer.style.opacity = '0'; }
                 if(statusText) statusText.textContent = 'ГОТОВО';
                 isRecording = false;
             };
-
-            mediaRecorder.start();
-            if(uiLayer) uiLayer.style.opacity = '0'; 
-            if(stopLayer) { stopLayer.classList.remove('hidden'); stopLayer.style.opacity = '1'; }
-            if(statusText) statusText.textContent = 'ЗАПИСЬ...';
-            studioAudio.currentTime = 0; studioAudio.play();
         };
 
-        const stopRecording = () => {
-            if (!isRecording || !mediaRecorder) return;
-            mediaRecorder.stop();
-            studioAudio.pause();
+        const executeStop = () => {
+            if (isRecording && mediaRecorder?.state === 'recording') {
+                studioAudio.pause();
+                mediaRecorder.stop();
+            }
         };
 
-        audioUpload.onchange = (e) => {
+        // --- Listeners ---
+        audioUpload.addEventListener('change', (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return; studioAudio.src = URL.createObjectURL(file);
-            studioAudio.oncanplay = () => { 
-                hasLoadedFile = true; 
-                btnRecord.disabled = false; 
-                connectAudioSource(); // Establishing the bridge
-                if(statusText) statusText.textContent = 'ГОТОВО'; 
+            if (!file) return;
+
+            // Trigger error modal for potential 0-byte or corrupted files
+            if (file.size === 0) {
+                showErrorModal();
+                return;
+            }
+
+            studioAudio.crossOrigin = "anonymous";
+            studioAudio.src = URL.createObjectURL(file);
+            studioAudio.load();
+            studioAudio.oncanplay = () => {
+                hasLoadedFile = true;
+                btnRecord.disabled = false;
+                if (statusText) statusText.textContent = 'СЕМЯ ЗАГРУЖЕНО';
+                connectAudioSource();
             };
-        };
-        btnRecord.onclick = startRecording; btnStop.onclick = stopRecording;
+            studioAudio.onerror = () => showErrorModal();
+        });
+
+        btnRecord.addEventListener('click', async () => {
+            if (!hasLoadedFile) return;
+            try {
+                if (audioContext?.state === 'suspended') await audioContext.resume();
+                studioAudio.currentTime = 0;
+                
+                // Set auto-stop when track ends
+                studioAudio.onended = () => {
+                    if (isRecording) executeStop();
+                };
+
+                await studioAudio.play();
+                
+                if (isAndroid) await new Promise(r => setTimeout(r, 150));
+                
+                setupRecorder();
+                if (!mediaRecorder) return;
+
+                if(uiLayer) { uiLayer.style.opacity = '0'; uiLayer.style.pointerEvents = 'none'; }
+                if(stopLayer) { stopLayer.classList.remove('hidden'); setTimeout(() => stopLayer.style.opacity = '1', 50); }
+                
+                recordedChunks = [];
+                recordStartTime = performance.now();
+                // 100ms timeslice creates more frequent WebM clusters for precise seeking
+                mediaRecorder.start(100);
+                isRecording = true;
+                if(statusText) statusText.textContent = 'ЗАПИСЬ...';
+            } catch (err) { console.error('Record Start Fail:', err); }
+        });
+
+        btnStop.addEventListener('click', executeStop);
         if (closeModal) closeModal.onclick = () => hideErrorModal();
 
+        // --- Draw Loop ---
         const ctx = canvas.getContext('2d');
-        const cw = 720, ch = 1280; canvas.width = cw; canvas.height = ch;
+        const cw = 720, ch = 1280;
+        canvas.width = cw; canvas.height = ch;
+        
+        const gridCanvas = document.createElement('canvas');
+        gridCanvas.width = cw; gridCanvas.height = ch;
+        const gctx = gridCanvas.getContext('2d');
+        if (gctx) {
+            gctx.strokeStyle = 'rgba(255, 255, 255, 0.012)';
+            gctx.lineWidth = 1;
+            for(let x=0; x<cw; x+=40) { gctx.moveTo(x,0); gctx.lineTo(x,ch); }
+            for(let y=0; y<ch; y+=40) { gctx.moveTo(0,y); gctx.lineTo(cw,y); }
+            gctx.stroke();
+        }
+
         let time = 0;
         const draw = () => {
             if (!ctx) return;
             requestAnimationFrame(draw);
             
-            // 1. Black Canvas
+            // 1. Perfect clear for dark backgrounds
             ctx.clearRect(0, 0, cw, ch);
             ctx.fillStyle = '#000000'; 
             ctx.fillRect(0, 0, cw, ch);
             
+            ctx.drawImage(gridCanvas, 0, 0);
             time += 0.015;
 
-            // Use hasLoadedFile but allow reading the analyser even if paused
-            const isDormant = !hasLoadedFile;
+            const isDormant = !hasLoadedFile || studioAudio.paused;
             const data = new Uint8Array(analyser ? analyser.frequencyBinCount : 512);
             let bass = 0, vocals = 0;
 
             if (!isDormant && analyser) {
-                // Periodically check context state just in case
-                if (audioContext?.state === 'suspended' && !studioAudio.paused) {
-                    audioContext.resume().catch(e => console.warn('[Audio] Failed to resume in draw loop', e));
-                }
-
                 analyser.getByteFrequencyData(data);
-                
-                // Enhanced Sensitivity for smaller devices/volumes
                 let bSum = 0, vSum = 0;
                 for(let i=0; i<8; i++) bSum += data[i];
                 for(let i=5; i<45; i++) vSum += data[i];
-                
-                bass = (bSum/8) * 1.1; 
-                vocals = (vSum/40) * 1.1;
-                
-                // If there is actual audio data, we are NOT dormant
-                const activeData = data[2] > 5 || data[10] > 5; // Threshold check
-                if (!activeData && studioAudio.paused) {
-                    // Fallback to dormant animation if truly silent and paused
-                    bass = 20 + Math.sin(time*3)*15;
-                    vocals = 15 + Math.sin(time*5)*10;
-                }
+                bass = bSum/8; vocals = vSum/40;
             } else {
                 bass = 20 + Math.sin(time*3)*15;
                 vocals = 15 + Math.sin(time*5)*10;
@@ -320,7 +416,6 @@
             const eyeGlow = 40 + (isDormant ? breathe*3 : Math.pow(vocals/255, 2) * 50);
 
             ctx.save();
-            // Message Overlay
             const msg = (studioTextInput?.value || 'СИНДИКАТ').toUpperCase();
             ctx.font = '20px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.letterSpacing = '8px'; ctx.fillText(msg, cw/2, ch*0.82);
@@ -329,15 +424,14 @@
             const scale = (cw*0.8/120) + (bass/255)*0.5;
             ctx.scale(scale, scale);
             
-            // 2. Premium Mouth Rendering
+            // 2. Clean Shadows-Free Mouth
             ctx.fillStyle = `rgba(${selectedColor}, 0.9)`;
             const numBars = 25;
             const mouthY = 20 + pulse;
             for (let i = 0; i < numBars; i++) {
                 const val = isDormant ? 0 : data[5 + Math.floor(i * (40/numBars))];
                 const taper = 1 - Math.pow(i/numBars, 2);
-                const h = isDormant ? (2+breathe)*taper+1 : (Math.pow(val/255, 3)*70*taper)+3;
-                
+                const h = isDormant ? (2+breathe)*taper+1 : (Math.pow(val/255, 3)*70*taper)+2;
                 const xRight = i*2.8; const xLeft = -i*2.8 - 2.8;
                 ctx.fillRect(xRight + 1.4, mouthY, 1.5, h);
                 ctx.fillRect(xLeft + 1.4, mouthY, 1.5, h);
@@ -346,13 +440,13 @@
                 ctx.fillRect(xLeft + 1.4, mouthY - uH - 4, 1.5, uH);
             }
 
-            // 3. Glowing Eyes
+            // 3. Glowing Eyes (Layered OVER mouth for depth)
             ctx.save();
-            ctx.shadowBlur = isRecording ? 12 : eyeGlow;
+            ctx.shadowBlur = eyeGlow;
             ctx.shadowColor = `rgba(${selectedColor}, 1)`;
             ctx.fillStyle = `rgba(${selectedColor}, 0.98)`;
             
-            // Left Eye
+            // Eye Paths
             ctx.beginPath();
             if(isDormant) {
                 ctx.moveTo(-50, -45 + pulse); ctx.lineTo(-15, -38 + pulse); ctx.lineTo(-45, -43 + pulse);
@@ -361,7 +455,6 @@
             }
             ctx.fill();
             
-            // Right Eye
             ctx.beginPath();
             if(isDormant) {
                 ctx.moveTo(50, -45 + pulse); ctx.lineTo(15, -38 + pulse); ctx.lineTo(45, -43 + pulse);
@@ -378,7 +471,7 @@
 </script>
 
 <style>
-  .studio-generator-container { background: #000; }
-  .text-cyber-primary { color: #D4AF37; }
-  .bg-cyber-primary { background: #D4AF37; }
+  #color-palette button {
+      flex-shrink: 0;
+  }
 </style>
