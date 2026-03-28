@@ -173,8 +173,9 @@
     const setupCanvas = () => {
         if (isRecording) return;
         const isMobile = window.innerWidth < 600 || /Android/i.test(navigator.userAgent);
-        cw = isMobile ? 720 : 1080;
-        ch = isMobile ? 1280 : 1920;
+        // Force 720p for better mobile encoder stability
+        cw = 720;
+        ch = 1280;
         canvas.width = cw;
         canvas.height = ch;
     };
@@ -468,6 +469,52 @@
            mixedStream = canvasStream;
         }
 
+        // --- Fast-Start MP4 Optimizer ---
+        const moveMoovToFront = async (blob: Blob) => {
+            try {
+                const arrayBuffer = await blob.arrayBuffer();
+                const view = new DataView(arrayBuffer);
+                let ftyp: ArrayBuffer | null = null;
+                let moov: ArrayBuffer | null = null;
+                let mdatOffset = -1;
+                let offset = 0;
+
+                while (offset < arrayBuffer.byteLength) {
+                    const size = view.getUint32(offset);
+                    const type = String.fromCharCode(
+                        view.getUint8(offset + 4), view.getUint8(offset + 5),
+                        view.getUint8(offset + 6), view.getUint8(offset + 7)
+                    );
+                    if (type === 'ftyp') ftyp = arrayBuffer.slice(offset, offset + size);
+                    if (type === 'moov') moov = arrayBuffer.slice(offset, offset + size);
+                    if (type === 'mdat') mdatOffset = offset;
+                    offset += (size === 1 ? view.getUint32(offset + 8) : size);
+                    if (size === 0) break;
+                }
+
+                if (ftyp && moov && mdatOffset !== -1) {
+                    console.log(`[Fast-Start] Found atoms. Shifting MOOV (${moov.byteLength} bytes)`);
+                    const moovView = new DataView(moov);
+                    const moovSize = moov.byteLength;
+                    // Patch STCO (Sample Table Chunk Offsets)
+                    for (let i = 0; i < moovSize - 8; i++) {
+                        if (moovView.getUint8(i) === 0x73 && moovView.getUint8(i+1) === 0x74 && 
+                            moovView.getUint8(i+2) === 0x63 && moovView.getUint8(i+3) === 0x6F) {
+                            const count = moovView.getUint32(i + 8);
+                            for (let j = 0; j < count; j++) {
+                                const off = i + 12 + j * 4;
+                                moovView.setUint32(off, moovView.getUint32(off) + moovSize);
+                            }
+                        }
+                    }
+                    return new Blob([ftyp, moov, arrayBuffer.slice(mdatOffset)], { type: blob.type });
+                }
+            } catch (e) {
+                console.error('[Fast-Start] Optimization failed', e);
+            }
+            return blob;
+        };
+
         let mimeType = 'video/mp4';
         let extension = 'mp4';
         const candidateMimeTypes = [
@@ -489,7 +536,7 @@
 
         mediaRecorder = new MediaRecorder(mixedStream, { 
             mimeType,
-            videoBitsPerSecond: isAndroid ? 2500000 : 5000000
+            videoBitsPerSecond: isAndroid ? 1200000 : 2500000
         });
 
         mediaRecorder.onerror = (event) => {
@@ -528,8 +575,10 @@
                 } catch (fixErr) {
                     console.error('[Re-mux] Failure during EBML refinement', fixErr);
                 }
-            } else {
-                console.log('[Recorder] Native MP4 generated, skipping EBML refinement');
+            } else if (selectedMimeType.includes('mp4')) {
+                // MP4 Fast-Start Logic: moving MOOV to the front
+                console.log('[Recorder] Native MP4 generated, applying Fast-Start fix...');
+                blob = await moveMoovToFront(blob);
             }
 
             const url = URL.createObjectURL(blob);

@@ -24,7 +24,7 @@ private_core/
 test/
 # Шаблоны и исходники Споры (ИЗОЛЯЦИЯ)
 SPORE/
-
+video/
 # === ЧТО ОСТАЕТСЯ ПУБЛИЧНЫМ ===
 # brains/dinamo/PERSONA.md
 # manifest-site/ (весь код сайта)
