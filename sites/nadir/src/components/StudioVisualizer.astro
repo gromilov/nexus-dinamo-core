@@ -133,7 +133,6 @@
         let hasLoadedFile = false;
         let recordStartTime = 0;
         let selectedMimeType = '';
-        let keyframeTimer: any = null;
 
         // --- Palette Setup ---
         const colors = [
@@ -185,8 +184,8 @@
             
             try {
                 const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-                // Force standard sampleRate to avoid device/renderer mismatches
-                audioContext = new AC({ sampleRate: 44100 });
+                // Force 48000Hz (Native Opus rate) for better Android/Telegram compatibility
+                audioContext = new AC({ sampleRate: 48000 });
                 
                 audioContext.onstatechange = () => {
                     console.log(`[AudioContext] State: ${audioContext?.state}`);
@@ -238,10 +237,10 @@
             for (const c of candidates) { if (MediaRecorder.isTypeSupported(c)) { mime = c; break; } }
             selectedMimeType = mime;
 
-            // Force higher bitrate (5 Mbps) and keyframe frequency
+            // Force stable bitrate (2.5 Mbps) and continuous stream for Telegram compatibility
             const recorderOptions: any = { 
                 mimeType: mime, 
-                videoBitsPerSecond: 5000000 
+                videoBitsPerSecond: 2500000 
             };
 
             mediaRecorder = new MediaRecorder(mixedStream, recorderOptions);
@@ -275,7 +274,6 @@
         };
 
         const executeStop = () => {
-            if (keyframeTimer) { clearInterval(keyframeTimer); keyframeTimer = null; }
             if (isRecording && mediaRecorder?.state === 'recording') {
                 studioAudio.pause();
                 mediaRecorder.stop();
@@ -328,23 +326,10 @@
                 
                 recordedChunks = [];
                 recordStartTime = performance.now();
-                // 100ms timeslice creates more frequent WebM clusters for precise seeking
-                mediaRecorder.start(100);
+                // 1000ms clusters create a more standard file structure for seeking
+                mediaRecorder.start(1000);
                 isRecording = true;
                 if(statusText) statusText.textContent = 'ЗАПИСЬ...';
-
-                // THE KEYFRAME BOMB: Force a keyframe every 2s using pause/resume hack
-                // This is the only way to make Telegram trimmer stable on most Androids
-                if (isAndroid) {
-                    keyframeTimer = setInterval(() => {
-                        if (isRecording && mediaRecorder?.state === 'recording') {
-                            mediaRecorder.pause();
-                            setTimeout(() => {
-                                if (isRecording && mediaRecorder?.state === 'paused') mediaRecorder.resume();
-                            }, 1);
-                        }
-                    }, 2000);
-                }
             } catch (err) { console.error('Record Start Fail:', err); }
         });
 
