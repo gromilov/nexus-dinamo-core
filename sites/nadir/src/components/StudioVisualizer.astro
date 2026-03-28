@@ -95,43 +95,51 @@
   <!-- Audio element: invisible but NOT display:none (critical for some mobile engines) -->
   <audio id="studio-audio" controls preload="auto" class="opacity-0 pointer-events-none absolute -z-10"></audio>
 
-  <!-- Export Progress Overlay -->
-  <div id="export-overlay" class="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 backdrop-blur-3xl hidden">
-    <div class="w-full max-w-[300px] space-y-8 text-center">
-      <div class="space-y-3">
-        <h3 class="text-cyber-primary font-black uppercase tracking-[0.4em] text-sm animate-pulse">СИНХРОНИЗАЦИЯ_MP4</h3>
-        <p class="text-[9px] font-mono text-white/40 uppercase tracking-widest leading-relaxed px-4">
-          ПОДГОТОВКА_КРИСТАЛЬНОЙ_ВЕРСИИ_ДЛЯ_TELEGRAM. НЕ_ЗАКРЫВАЙТЕ_СТРАНИЦУ.
+  <!-- Export Progress Overlay (Mesmerizing Loader) -->
+  <div id="export-overlay" class="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-black/98 backdrop-blur-3xl hidden">
+    <div class="w-full max-w-[320px] space-y-10 text-center">
+      
+      <!-- Mesmerizing Crystal Loader -->
+      <div class="crystal-loader-container mb-4">
+        <div class="crystal-loader"></div>
+      </div>
+
+      <div class="space-y-4 px-6 w-full">
+        <h3 class="text-cyber-primary font-black uppercase tracking-[0.1em] text-sm animate-pulse">СИНХРОНИЗАЦИЯ_РЕЗОНАНСА</h3>
+        <p class="text-[9px] font-mono text-white/50 uppercase tracking-[0.05em] leading-relaxed">
+          ЭТО_МОЖЕТ_ЗАНЯТЬ_ОТ_НЕСКОЛЬКИХ_СЕКУНД_ДО_МИНУТ. ПОЖАЛУЙСТА_ПОДОЖДИТЕ.
         </p>
       </div>
-      <div class="relative h-1 w-full bg-white/5 overflow-hidden">
-        <div id="export-progress" class="absolute top-0 left-0 h-full bg-cyber-primary w-0 transition-all duration-300"></div>
+
+      <div id="export-status" class="text-[8px] font-mono text-cyber-primary/40 uppercase tracking-[0.3em]">
+        ИНИЦИАЛИЗАЦИЯ_КРИСТАЛЛА...
       </div>
-      <div id="export-status" class="text-[8px] font-mono text-cyber-primary/60 uppercase tracking-[0.3em]">ИНИЦИАЛИЗАЦИЯ_ЯДРА...</div>
     </div>
   </div>
 
   <!-- Download Choice Overlay -->
   <div id="choice-overlay" class="hidden">
-    <h2 class="text-cyber-primary font-black uppercase tracking-[0.4em] text-sm mb-2">ФИНАЛИЗАЦИЯ_РЕЗОНАНСА</h2>
-    <p class="text-[9px] font-mono text-white/40 uppercase tracking-widest mb-8">ВЫБЕРИТЕ_ФОРМАТ_СОХРАНЕНИЯ</p>
+    <h2 class="text-cyber-primary font-black uppercase tracking-[0.15em] text-sm mb-2 px-6">РЕЗОНАНС_ЗАВЕРШЕН</h2>
+    <p class="text-[9px] font-mono text-white/40 uppercase tracking-widest mb-10 px-6">ВЫБЕРИТЕ_ФОРМАТ_ЭКСПОРТА</p>
     
     <div class="choice-buttons">
-        <button id="download-mp4" class="choice-btn" disabled>
-            <span>КРИСТАЛЬНЫЙ MP4 (PRO)</span>
-            <span id="mp4-status-label" style="font-size: 0.6rem; opacity: 0.6;">[ОБРАБОТКА_В_ФОНЕ...]</span>
+        <button id="download-mp4" class="choice-btn">
+            <span>КРИСТАЛЬНЫЙ MP4 (HQ)</span>
+            <span id="mp4-status-label" style="font-size: 0.6rem; opacity: 0.8; color: black; font-weight: 800;">ВЫСОКОЕ_КАЧЕСТВО</span>
         </button>
-        <button id="download-webm" class="choice-btn secondary">
+        <button id="download-webm" class="choice-btn">
             СКАЧАТЬ WEBM (БЫСТРО)
         </button>
     </div>
 
-    <p class="diagnostic-note">
-        // ЕСЛИ_НА_ТЕЛЕФОНЕ_ВОЗНИКАЮТ_ПРОБЛЕМЫ - ПОПРОБУЙТЕ_ЭКСПОРТ_С_КОМПЬЮТЕРА_ДЛЯ_МАКСИМАЛЬНОЙ_СТАБИЛЬНОСТИ.
-    </p>
+    <div class="diagnostic-note-container w-full px-4 flex justify-center">
+        <p class="diagnostic-note">
+            // ЕСЛИ_НА_ТЕЛЕФОНЕ_ВОЗНИКАЮТ_ПРОБЛЕМЫ_С_ЭКСПОРТОМ - ПОПРОБУЙТЕ_СПОКОЙНО_СДЕЛАТЬ_ЭТО_С_КОМПЬЮТЕРА_ДЛЯ_МАКСИМАЛЬНОЙ_СТАБИЛЬНОСТИ.
+        </p>
+    </div>
 
-    <button id="close-choice" class="text-[9px] font-mono text-white/20 uppercase tracking-[0.5em] mt-8 hover:text-white transition-colors">
-        [ ЗАКРЫТЬ ]
+    <button id="close-choice" class="choice-close-btn">
+        [ Х ] ЗАКРЫТЬ
     </button>
   </div>
 
@@ -182,7 +190,6 @@
 
         const exportOverlay = document.getElementById('export-overlay');
         const choiceOverlay = document.getElementById('choice-overlay');
-        const exportProgress = document.getElementById('export-progress');
         const exportStatus = document.getElementById('export-status');
         const downloadWebmBtn = document.getElementById('download-webm') as HTMLButtonElement;
         const downloadMp4Btn = document.getElementById('download-mp4') as HTMLButtonElement;
@@ -347,22 +354,19 @@
                 recordedChunks = [];
                 if (selectedMimeType.includes('webm')) lastWebmBlob = await fixWebmSeekable(lastWebmBlob, finalDuration);
                 
-                // Show Choice UI
                 if (choiceOverlay) {
-                    choiceOverlay.style.display = 'flex';
+                    choiceOverlay.classList.remove('hidden');
+                    choiceOverlay.style.display = 'flex'; // Solidify display
+                    choiceOverlay.style.pointerEvents = 'auto';
                     setTimeout(() => choiceOverlay.style.opacity = '1', 50);
-                    downloadMp4Btn.disabled = true;
-                    if (mp4StatusLabel) mp4StatusLabel.textContent = '[ОБРАБОТКА_В_ФОНЕ...]';
+                    downloadMp4Btn.disabled = false;
+                    if (mp4StatusLabel) mp4StatusLabel.textContent = 'КРИСТАЛЬНОЕ_КАЧЕСТВО';
                 }
 
                 if(uiLayer) { uiLayer.style.opacity = '1'; uiLayer.style.pointerEvents = 'auto'; }
                 if(stopLayer) { stopLayer.classList.add('hidden'); stopLayer.style.opacity = '0'; }
-                if(statusText) statusText.textContent = 'ЗАВЕРШЕНО';
+                if(statusText) statusText.textContent = 'ВЫШЕЛ В ЭФИР';
                 isRecording = false;
-
-                // Start Ghost Export to MP4 in background (don't show big overlay yet, or show small progress?)
-                // Let's show the Choice UI immediately, but keep MP4 button disabled until worker finishes.
-                runGhostExport();
             };
         };
 
@@ -375,8 +379,22 @@
 
         // --- Ghost Export Core ---
         const runGhostExport = async () => {
-            if (!audioBuffer || !exportProgress || !exportStatus) return;
+            if (!audioBuffer || !exportStatus || !exportOverlay) return;
             isGhostExporting = true;
+
+            // Block tab closing during export
+            window.onbeforeunload = (e) => {
+                e.preventDefault();
+                e.returnValue = 'РЕНДЕРИНГ_В_ПРОЦЕССЕ. ЕСЛИ_ВЫ_УЙДЕТЕ_ФАЙЛ_БУДЕТ_ПОТЕРЯН.';
+                return e.returnValue;
+            };
+            
+            // Show Overlay explicitly
+            exportOverlay.classList.remove('hidden');
+            exportOverlay.style.display = 'flex'; // Solidify display
+            exportOverlay.style.pointerEvents = 'auto';
+            setTimeout(() => exportOverlay.style.opacity = '1', 50);
+            if (exportStatus) exportStatus.textContent = 'ИНИЦИАЛИЗАЦИЯ_ЯДРА...';
             
             const duration = audioBuffer.duration;
             const fps = 30;
@@ -424,9 +442,9 @@
                 });
                 worker.postMessage({ type: 'VIDEO_FRAME', data: { frame, keyFrame: i % 60 === 0 } }, [frame]);
                 
-                if (i % 20 === 0) {
-                    const pct = Math.round((i / totalFrames) * 100);
-                    if (mp4StatusLabel) mp4StatusLabel.textContent = `[ОБРАБОТКА: ${pct}%]`;
+                // No more percentages - just UI heartbeat
+                if (i % 60 === 0) {
+                    if (exportStatus) exportStatus.textContent = i % 120 === 0 ? 'СИНХРОНИЗАЦИЯ...' : 'ГЕНЕРАЦИЯ_КАДРОВ...';
                 }
                 
                 // Allow UI to breathe - critical for preventing "Lags"
@@ -465,13 +483,27 @@
 
             worker.onmessage = (e) => {
                 if (e.data.type === 'DONE') {
+                    // Unblock tab closing
+                    window.onbeforeunload = null;
+                    
                     lastMp4Blob = new Blob([e.data.buffer], { type: 'video/mp4' });
                     
-                    if (downloadMp4Btn) {
-                        downloadMp4Btn.disabled = false;
-                        if (mp4StatusLabel) mp4StatusLabel.textContent = '[ГОТОВО_К_СКАЧИВАНИЮ]';
-                    }
+                    const url = URL.createObjectURL(lastMp4Blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `SYNDICATE_CRYSTAL_${Date.now()}.mp4`;
+                    a.click();
 
+                    // Cleanup
+                    if (exportOverlay) {
+                        exportOverlay.style.opacity = '0';
+                        exportOverlay.style.pointerEvents = 'none';
+                        setTimeout(() => {
+                            exportOverlay.classList.add('hidden');
+                            exportOverlay.style.display = 'none';
+                        }, 700);
+                    }
+                    
                     isGhostExporting = false;
                     worker.terminate();
                 }
@@ -489,18 +521,27 @@
         });
 
         downloadMp4Btn?.addEventListener('click', () => {
-            if (!lastMp4Blob) return;
-            const url = URL.createObjectURL(lastMp4Blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `SYNDICATE_CRYSTAL_${Date.now()}.mp4`;
-            a.click();
+            if (lastMp4Blob) {
+                // If already generated, just download
+                const url = URL.createObjectURL(lastMp4Blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `SYNDICATE_CRYSTAL_${Date.now()}.mp4`;
+                a.click();
+            } else {
+                // Otherwise, trigger generation
+                runGhostExport();
+            }
         });
 
         closeChoiceBtn?.addEventListener('click', () => {
             if (choiceOverlay) {
                 choiceOverlay.style.opacity = '0';
-                setTimeout(() => choiceOverlay.style.display = 'none', 500);
+                choiceOverlay.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    choiceOverlay.classList.add('hidden');
+                    choiceOverlay.style.display = 'none';
+                }, 500);
             }
         });
 
@@ -691,11 +732,29 @@
       flex-shrink: 0;
   }
 
-  #export-overlay, #choice-overlay {
+  #export-overlay {
+      position: fixed; /* Global screen coverage */
+      inset: 0;
+      background: rgba(0, 0, 0, 0.98);
+      display: none; 
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999; /* Absolute top priority */
+      backdrop-filter: blur(25px);
+      gap: 25px;
+      text-align: center;
+      padding: 40px;
+      opacity: 0;
+      pointer-events: none; 
+      transition: opacity 0.5s ease;
+  }
+
+  #choice-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.96);
-      display: none;
+      background: rgba(0, 0, 0, 0.98);
+      display: none; 
       flex-direction: column;
       align-items: center;
       justify-content: center;
@@ -705,6 +764,7 @@
       text-align: center;
       padding: 40px;
       opacity: 0;
+      pointer-events: none; 
       transition: opacity 0.5s ease;
   }
 
@@ -717,9 +777,9 @@
   }
 
   .choice-btn {
-      background: var(--gold);
+      background: #D4AF37;
       color: black;
-      border: none;
+      border: 1px solid #D4AF37;
       padding: 18px 30px;
       font-family: monospace;
       font-size: 0.85rem;
@@ -733,34 +793,104 @@
       align-items: center;
       justify-content: center;
       gap: 5px;
+      width: 100%;
   }
 
   .choice-btn:hover:not(:disabled) {
       transform: translateY(-5px);
-      background: white;
-      box-shadow: 0 10px 40px rgba(212, 175, 55, 0.3);
+      background: #ffffff;
+      border-color: #ffffff;
+      color: #000000 !important;
+      box-shadow: 0 10px 40px rgba(212, 175, 55, 0.4);
   }
 
   .choice-btn:disabled {
       background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.1);
       color: rgba(255,255,255,0.2);
       cursor: wait;
   }
 
-  .choice-btn.secondary {
-      background: transparent;
-      border: 1px solid rgba(212, 175, 55, 0.3);
-      color: var(--gold);
+  .choice-close-btn {
+      display: inline-block;
+      margin-top: 35px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid #D4AF37;
+      color: #D4AF37;
+      font-family: monospace;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.3em;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+  }
+
+  .choice-close-btn:hover {
+      background: #D4AF37;
+      color: black;
+  }
+
+  .diagnostic-note-container {
+      width: 100%;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      margin-top: 25px;
+      padding-top: 20px;
   }
 
   .diagnostic-note {
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-family: monospace;
-      color: rgba(212,175,55,0.4);
-      max-width: 320px;
+      color: #D4AF37;
+      max-width: 280px; /* Force wrap on mobile */
+      width: 100%;
       line-height: 1.6;
-      margin-top: 30px;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.05em; /* Reduced for mobile fit */
+      word-break: break-all;
+      white-space: normal;
+  }
+
+  /* Black Crystal Mesmerizer Loader */
+  .crystal-loader-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 120px;
+  }
+
+  .crystal-loader {
+      width: 40px;
+      height: 40px;
+      background: #000;
+      border: 1px solid #D4AF37;
+      position: relative;
+      animation: crystal-breathe 3s infinite ease-in-out;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
+  }
+
+  .crystal-loader::before, .crystal-loader::after {
+      content: '';
+      position: absolute;
+      inset: -10px;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      animation: crystal-orbit 6s infinite linear;
+  }
+
+  .crystal-loader::after {
+      inset: -20px;
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      animation: crystal-orbit 9s infinite linear reverse;
+  }
+
+  @keyframes crystal-breathe {
+      0%, 100% { transform: rotate(45deg) scale(0.9); box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); border-color: rgba(212, 175, 55, 0.3); }
+      50% { transform: rotate(45deg) scale(1.1); box-shadow: 0 0 40px rgba(212, 175, 55, 0.5); border-color: rgba(212, 175, 55, 1); }
+  }
+
+  @keyframes crystal-orbit {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
   }
 </style>
