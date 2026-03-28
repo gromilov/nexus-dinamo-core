@@ -10,5 +10,9 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindv4()],
+    worker: {
+      format: 'es',
+      noExternal: ['mp4-muxer'],
+    },
   },
 });

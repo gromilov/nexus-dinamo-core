@@ -1,4 +1,4 @@
-import * as Mp4Muxer from 'mp4-muxer';
+import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 
 let muxer = null;
 let videoEncoder = null;
@@ -8,8 +8,8 @@ self.onmessage = async (e) => {
     const { type, data } = e.data;
     
     if (type === 'START') {
-        muxer = new Mp4Muxer.Muxer({
-            target: new Mp4Muxer.ArrayBufferTarget(),
+        muxer = new Muxer({
+            target: new ArrayBufferTarget(),
             video: { codec: 'avc', width: 720, height: 1280 },
             audio: { codec: 'aac', numberOfChannels: 2, sampleRate: data.sampleRate },
             fastStart: 'in-memory',
