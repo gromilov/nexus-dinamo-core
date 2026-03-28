@@ -24,18 +24,18 @@
          <!-- Syndicate Kitchen Instructions -->
          <div class="space-y-1.5 border-b border-white/5 pb-4 mb-4">
             <label class="text-[9px] font-mono text-cyber-primary uppercase tracking-[0.2em] block mb-2 opacity-80">// КУХНЯ_СИНДИКАТА</label>
-            <div class="grid grid-cols-3 gap-2 text-center">
-               <div class="bg-white/5 p-2 border border-white/5">
-                  <span class="text-[8px] text-cyber-muted block mb-1">01.ТЕКСТ</span>
-                  <p class="text-[7px] text-white/40 leading-tight uppercase font-mono">ПОПРОСИ СВОЙ ИИ НАПИСАТЬ О СЕБЕ</p>
-               </div>
-               <div class="bg-white/5 p-2 border border-white/5">
-                  <span class="text-[8px] text-cyber-muted block mb-1">02.ГОЛОС</span>
-                  <p class="text-[7px] text-white/40 leading-tight uppercase font-mono">ОЗВУЧЬ ЧЕРЕЗ SUNO (MP3)</p>
-               </div>
-               <div class="bg-white/5 p-2 border border-white/5">
+            <div class="grid grid-cols-3 gap-2 text-center text-[7px] uppercase font-mono">
+               <a href="https://chat.deepseek.com" target="_blank" class="bg-white/5 p-2 border border-white/5 hover:bg-cyber-primary/10 hover:border-cyber-primary/30 transition-all group block">
+                  <span class="text-[8px] text-cyber-muted block mb-1 group-hover:text-cyber-primary transition-colors">01.ТЕКСТ</span>
+                  <p class="text-white/40 leading-tight">ПОПРОСИ ИИ НАПИСАТЬ О СЕБЕ</p>
+               </a>
+               <a href="https://suno.com" target="_blank" class="bg-white/5 p-2 border border-white/5 hover:bg-cyber-primary/10 hover:border-cyber-primary/30 transition-all group block">
+                  <span class="text-[8px] text-cyber-muted block mb-1 group-hover:text-cyber-primary transition-colors">02.ГОЛОС</span>
+                  <p class="text-white/40 leading-tight">ОЗВУЧЬ ЧЕРЕЗ SUNO (MP3)</p>
+               </a>
+               <div class="bg-white/5 p-2 border border-white/5 opacity-80">
                   <span class="text-[8px] text-cyber-muted block mb-1">03.ОБРАЗ</span>
-                  <p class="text-[7px] text-white/40 leading-tight uppercase font-mono">ЗАГРУЗИ И ЗАПИШИ ЧЕРЕЗ НАДИР</p>
+                  <p class="text-white/40 leading-tight">ЗАГРУЗИ И ЗАПИШИ ТУТ</p>
                </div>
             </div>
          </div>
@@ -82,7 +82,7 @@
       <div class="space-y-4">
         <h3 class="text-cyber-primary font-black uppercase tracking-[0.3em] text-sm text-center">КРИТИЧЕСКИЙ_СБОЙ</h3>
         <p class="text-[10px] font-mono text-white/80 leading-relaxed uppercase tracking-widest text-center border-y border-white/5 py-4">
-          ФАЙЛ_О_БАЙТ. ЭТО_"ВИРТУАЛЬНАЯ"_ССЫЛКА_ИЗ_ОБЛАКА. ПРОВЕРЬТЕ, ЧТО_ФАЙЛ_СКАЧАН_И_ВЫБИРАЙТЕ_ЕГО_ЧЕРЕЗ_ПАПКУ "ВНУТРЕННЯЯ_ПАМЯТЬ" -> "DOWNLOADS", А_НЕ_ЧЕРЕЗ_"НЕДАВНИЕ".
+          НЕ_УДАЛОСЬ_ПРОЧИТАТЬ_АУДИО. ЭТО_БЫВАЕТ_С_ФАЙЛАМИ_ИЗ_"НЕДАВНИХ"_ИЛИ_ОБЛАКА. ПОПРОБУЙТЕ_СКАЧАТЬ_ЕГО_ВО_"ВНУТРЕННЮЮ_ПАМЯТЬ" -> "DOWNLOADS"_И_ВЫБРАТЬ_ОТСЮДА.
         </p>
       </div>
 
@@ -224,12 +224,8 @@
         }
 
         if (file.size === 0) {
-            if (statusText) statusText.textContent = 'ОШИБКА: Файл 0 байт.';
-            if (errorModal) {
-                errorModal.classList.remove('hidden');
-                setTimeout(() => errorModal.classList.add('opacity-100'), 50);
-            }
-            return;
+            if (statusText) statusText.textContent = `ПЫТАЮСЬ ПРОЧЕСТЬ [${fileSizeMb}MB]...`;
+            // Removed return: some Android cloud providers report 0 bytes initially but the file is readable
         }
 
         if (closeModal) {
@@ -290,7 +286,13 @@
                 console.error('Audio load error:', err);
                 hasLoadedFile = true;
                 btnRecord.disabled = false;
-                if (statusText) statusText.textContent = 'ОШИБКА ДЕКОДЕРА [ERR] — попробуй всё равно';
+                if (statusText) statusText.textContent = 'ОШИБКА ДЕКОДЕРА [ERR]';
+                
+                // Show modal on ACTUAL error, not just 0-byte report
+                if (errorModal) {
+                    errorModal.classList.remove('hidden');
+                    setTimeout(() => errorModal.classList.add('opacity-100'), 50);
+                }
             };
             promoAudio.load();
         };
