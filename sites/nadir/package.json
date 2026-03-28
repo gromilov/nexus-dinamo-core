@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.0.0",
     "astro": "^6.0.0",
     "buffer": "^6.0.3",
+    "fix-webm-duration": "^1.0.6",
     "howler": "^2.2.4",
     "lucide-astro": "^0.471.0",
     "mp4box": "^0.5.4",

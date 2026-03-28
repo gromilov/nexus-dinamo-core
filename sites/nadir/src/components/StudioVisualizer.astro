@@ -101,7 +101,7 @@
     import { Buffer } from 'buffer';
     if (typeof window !== 'undefined') { (window as any).Buffer = Buffer; }
     
-    import { Decoder, Reader, tools } from 'ts-ebml';
+    import fixWebmDuration from 'fix-webm-duration';
 
     document.addEventListener('DOMContentLoaded', () => {
         // ... (UI elements)
@@ -217,36 +217,6 @@
             }
         };
 
-        // --- EBML Patching (Seekability) ---
-        const fixWebmSeekable = async (blob: Blob, durationMs: number) => {
-            try {
-                const decoder = new Decoder();
-                const reader = new Reader();
-                (reader as any).logging = false;
-                const buffer = await blob.arrayBuffer();
-                const elms = decoder.decode(buffer);
-                elms.forEach(e => reader.read(e));
-                reader.stop();
-                
-                // EBML Header Patch: Tools.makeMetadataSeekable produces a clean header with Cues
-                const refinedMetadataBuf = tools.makeMetadataSeekable(reader.metadatas, durationMs, reader.cues);
-                
-                // Robust Splicing: Find the actual start of the first Cluster (0x1F43B675)
-                // Browsers sometimes add extra tags that reader.metadataSize misses.
-                const view = new DataView(buffer);
-                let clusterOffset = -1;
-                for (let i = 0; i < buffer.byteLength - 4; i++) {
-                    if (view.getUint32(i) === 0x1F43B675) {
-                        clusterOffset = i;
-                        break;
-                    }
-                }
-                
-                const finalOffset = clusterOffset !== -1 ? clusterOffset : reader.metadataSize;
-                return new Blob([refinedMetadataBuf, buffer.slice(finalOffset)], { type: blob.type });
-            } catch(e) { console.error('[EBML] Fix failed', e); return blob; }
-        };
-
         // --- Recording Session ---
         const setupRecorder = (androidStream?: MediaStream) => {
             const canvasStream = canvas.captureStream(30);
@@ -261,33 +231,34 @@
                 console.log('[Recorder] Android fallback tracks:', audioTracks.length);
             }
 
-            // DIAGNOSTIC TEST: Switching to SILENT MP4 to check Telegram Seek Compatibility
-            // We ignore audio tracks for this specific test
-            const mixedStream = new MediaStream([...canvasStream.getVideoTracks()]);
-            
-            // Priority to MP4 (H.264) for Telegram testing
-            const testMime = 'video/mp4;codecs=avc1';
-            let finalMime = 'video/webm';
-            if (MediaRecorder.isTypeSupported(testMime)) finalMime = testMime;
-            selectedMimeType = finalMime;
+            const mixedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
+            const candidates = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+            let mime = 'video/webm';
+            for (const c of candidates) { if (MediaRecorder.isTypeSupported(c)) { mime = c; break; } }
+            selectedMimeType = mime;
 
+            // Force high-quality bitrate and frequent clusters (timeslice 100ms)
             const recorderOptions: any = { 
-                mimeType: finalMime, 
-                videoBitsPerSecond: 2500000 
+                mimeType: mime, 
+                videoBitsPerSecond: 1200000 
             };
-            
+
             mediaRecorder = new MediaRecorder(mixedStream, recorderOptions);
-            console.log(`[Diagnostic] Recorder started in ${finalMime} (Silent Mode)`);
 
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = async () => {
                 if (recordedChunks.length === 0) return;
                 const finalDuration = performance.now() - recordStartTime;
-                console.log(`[Recorder] Recording finished. Measured Duration: ${Math.round(finalDuration)}ms`);
                 
                 let blob = new Blob(recordedChunks, { type: selectedMimeType });
                 recordedChunks = [];
-                if (selectedMimeType.includes('webm')) blob = await fixWebmSeekable(blob, finalDuration);
+                
+                // Light Patch: fix-webm-duration is safer for Telegram seeking
+                if (selectedMimeType.includes('webm')) {
+                    blob = await new Promise((resolve) => {
+                        fixWebmDuration(blob, finalDuration, (outBlob) => resolve(outBlob));
+                    });
+                }
                 
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -355,7 +326,7 @@
                 
                 recordedChunks = [];
                 recordStartTime = performance.now();
-                // Measure the impact of timeslice on Telegram behavior
+                // 100ms timeslice creates more frequent WebM clusters for precise seeking
                 mediaRecorder.start(100);
                 isRecording = true;
                 if(statusText) statusText.textContent = 'ЗАПИСЬ...';
