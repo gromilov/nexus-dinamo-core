@@ -133,6 +133,7 @@
         let hasLoadedFile = false;
         let recordStartTime = 0;
         let recordDuration = 0;
+        let selectedMimeType = ''; // To track the final chosen format
 
     // 9-Color Palette
     const colors = [
@@ -470,13 +471,13 @@
         let mimeType = 'video/mp4';
         let extension = 'mp4';
         const candidateMimeTypes = [
-            'video/mp4;codecs=avc1.42E01E', // Highly compatible H.264 Baseline
-            'video/mp4', 
-            'video/webm;codecs=h264', 
-            'video/webm;codecs=vp9', 
-            'video/webm;codecs=vp8', 
-            'video/webm'
+            'video/mp4;codecs=avc1',      // Priority 1: H.264 (Most compatible with Telegram)
+            'video/mp4',                  // Priority 2: Standard MP4
+            'video/webm;codecs=vp8',     // Priority 3: VP8 WebM (Compatible fallback)
+            'video/webm;codecs=vp9',     // Priority 4: VP9 WebM
+            'video/webm'                 // Priority 5: Generic WebM
         ];
+        
         for (const candidate of candidateMimeTypes) {
             if (MediaRecorder.isTypeSupported(candidate)) {
                 mimeType = candidate;
@@ -484,6 +485,7 @@
                 break;
             }
         }
+        selectedMimeType = mimeType;
 
         mediaRecorder = new MediaRecorder(mixedStream, { 
             mimeType,
@@ -505,8 +507,8 @@
             let blob = new Blob(recordedChunks, { type: mimeType });
             recordedChunks = [];
 
-            // Advanced EBML Re-muxing for Telegram/WebM compatibility
-            if (mimeType.includes('webm')) {
+            // Advanced EBML Re-muxing ONLY for WebM compatibility
+            if (selectedMimeType.includes('webm')) {
                 try {
                     console.log(`[Re-mux] Starting EBML analysis: ${Math.round(recordDuration)}ms`);
                     const decoder = new Decoder();
@@ -519,13 +521,15 @@
                     elms.forEach((elm) => reader.read(elm));
                     reader.stop();
 
-                    const refinedMetadataBuf = tools.makeMetadataSeekable(reader.metadatas, reader.duration, reader.cues);
+                    const tryBuffer = tools.makeMetadataSeekable(reader.metadatas, reader.duration, reader.cues);
                     const body = buffer.slice(reader.metadataSize);
-                    blob = new Blob([refinedMetadataBuf, body], { type: mimeType });
+                    blob = new Blob([tryBuffer, body], { type: selectedMimeType });
                     console.log(`[Re-mux] Success: Seekable WebM generated`);
                 } catch (fixErr) {
                     console.error('[Re-mux] Failure during EBML refinement', fixErr);
                 }
+            } else {
+                console.log('[Recorder] Native MP4 generated, skipping EBML refinement');
             }
 
             const url = URL.createObjectURL(blob);
